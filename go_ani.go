@@ -39,28 +39,28 @@ func getHostList() *sql.Rows {
 func getParentList() map[string]map[string][]string {
         database, _ := sql.Open("sqlite3", "./ansible.db")
         rows, err :=
-                database.Query("SELECT rowid,name FROM parents ORDER BY name ASC")
+                database.Query("SELECT rowid,name FROM parentgroups ORDER BY name ASC")
         if err != nil {
                 fmt.Println("SQL select error: ")
                 log.Fatal(err)
         }
 	//var allParent []string
         var name string
+	var groupName string
 	var rowid int
         var f = make(map[string]map[string][]string)
         for rows.Next() {
 		var allGroups []string
-		rows.Scan(&name)
-		rows.Scan(&rowid)
+		rows.Scan(&rowid, &name)
 		groupAssoc, err :=
-			database.Query("SELECT name FROM hostgroups WHERE group_id IN (SELECT group_id FROM parent_child WHERE parent_id=" + strconv.Itoa(rowid))
+			database.Query("SELECT name FROM hostgroups WHERE rowid IN (SELECT group_id FROM parent_child WHERE parent_id=" + strconv.Itoa(rowid) + ");")
 	        if err != nil {
 			fmt.Println("SQL select error: ")
 			log.Fatal(err)
 		}
 		for groupAssoc.Next() {
-			rows.Scan(&name)
-			allGroups = append(allGroups,name)
+			groupAssoc.Scan(&groupName)
+			allGroups = append(allGroups,groupName)
 		}
                 m := map[string][]string{
 			"children": allGroups,
@@ -105,19 +105,23 @@ func ansibleQuery(w http.ResponseWriter, r *http.Request) {
 					rows.Scan(&name)
 					allHosts = append(allHosts,name)
 				}
+			        m := map[string][]string{
+		        	        "hosts": allHosts,
+			        }
+
+			        f := map[string]map[string][]string{
+			                "all": m,
+			        }
+			        json.NewEncoder(w).Encode(f)
+			case "test":
+			         m := getParentList()
+				 json.NewEncoder(w).Encode(m)
 			default:
 				fmt.Fprintf(w, "Request is not supported")
 			}
         default:
                 fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
         }
-	m := map[string][]string{
-		"hosts": allHosts,
-	}
-	f := map[string]map[string][]string{
-		"all": m,
-	}
-	json.NewEncoder(w).Encode(f)
 }
 
 func ansibleIndex(w http.ResponseWriter, r *http.Request) {
