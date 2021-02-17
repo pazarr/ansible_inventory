@@ -36,7 +36,7 @@ func getHostList() *sql.Rows {
 	return rows
 }
 
-func getParentList() map[string]map[string][]string {
+func getParentList() map[string]interface{} {
         database, _ := sql.Open("sqlite3", "./ansible.db")
         rows, err :=
                 database.Query("SELECT rowid,name FROM parentgroups ORDER BY name ASC")
@@ -47,10 +47,14 @@ func getParentList() map[string]map[string][]string {
 	//var allParent []string
         var name string
 	var groupName string
+	var parentVarName string
+	var parentVarValue string
 	var rowid int
-        var f = make(map[string]map[string][]string)
+        var f = make(map[string]interface{})
+	//Create map from all children of the Parent
         for rows.Next() {
 		var allGroups []string
+		var allVars = make(map[string]string)
 		rows.Scan(&rowid, &name)
 		groupAssoc, err :=
 			database.Query("SELECT name FROM hostgroups WHERE rowid IN (SELECT group_id FROM parent_child WHERE parent_id=" + strconv.Itoa(rowid) + ");")
@@ -62,9 +66,22 @@ func getParentList() map[string]map[string][]string {
 			groupAssoc.Scan(&groupName)
 			allGroups = append(allGroups,groupName)
 		}
-                m := map[string][]string{
+		parentVars, err :=
+			database.Query("SELECT parent_var, value FROM parentvars WHERE parent_id=" + strconv.Itoa(rowid))
+		if err != nil {
+			fmt.Println("SQL select error: ")
+			log.Fatal(err)
+		}
+		for parentVars.Next() {
+			parentVars.Scan(&parentVarName, &parentVarValue)
+			allVars[parentVarName] = parentVarValue
+		}
+		m := map[string]interface{}{
 			"children": allGroups,
+			"vars": allVars,
+
                 }
+
 		f[name] = m
 	}
 
