@@ -36,6 +36,40 @@ func getHostList() *sql.Rows {
 	return rows
 }
 
+func getParentList() map[string]map[string][]string {
+        database, _ := sql.Open("sqlite3", "./ansible.db")
+        rows, err :=
+                database.Query("SELECT rowid,name FROM parents ORDER BY name ASC")
+        if err != nil {
+                fmt.Println("SQL select error: ")
+                log.Fatal(err)
+        }
+	//var allParent []string
+        var name string
+	var rowid int
+        var f = make(map[string]map[string][]string)
+        for rows.Next() {
+		var allGroups []string
+		rows.Scan(&name)
+		rows.Scan(&rowid)
+		groupAssoc, err :=
+			database.Query("SELECT name FROM hostgroups WHERE group_id IN (SELECT group_id FROM parent_child WHERE parent_id=" + strconv.Itoa(rowid))
+	        if err != nil {
+			fmt.Println("SQL select error: ")
+			log.Fatal(err)
+		}
+		for groupAssoc.Next() {
+			rows.Scan(&name)
+			allGroups = append(allGroups,name)
+		}
+                m := map[string][]string{
+			"children": allGroups,
+                }
+		f[name] = m
+	}
+
+        return f
+}
 /*func getAllList() struct {
         database, _ := sql.Open("sqlite3", "./ansible.db")
         rows, err :=
@@ -61,7 +95,6 @@ func ansibleQuery(w http.ResponseWriter, r *http.Request) {
                         fmt.Fprintf(w, "ParseForm() err: %v", err)
                         return
                 }
-//                fmt.Fprintf(w, "Post from website! r.PostFrom = %v\n", r.PostForm)
                 ansibleQueryType := r.FormValue("q")
 		switch ansibleQueryType {
 			case "list":
@@ -70,7 +103,6 @@ func ansibleQuery(w http.ResponseWriter, r *http.Request) {
 				var name string
 				for rows.Next() {
 					rows.Scan(&name)
-//	                                fmt.Fprintf(w, "Host = %s\n", name)
 					allHosts = append(allHosts,name)
 				}
 			default:
