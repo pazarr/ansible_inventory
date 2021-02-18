@@ -36,7 +36,29 @@ func getHostList() *sql.Rows {
 	return rows
 }
 
-func getParentList() map[string]interface{} {
+func getGroupList() map[string]interface{} {
+	//Set local variables
+        var parentName string
+        var groupName string
+	var hostName string
+        var parentVarName string
+        var parentVarValue string
+        var rowid int
+        //var f = make(map[string]interface{})
+	var combinedMap = make(map[string]interface{})
+	//Fetch all hosts
+	var allHost []string
+	fetchAllHost := getHostList()
+	for fetchAllHost.Next() {
+		fetchAllHost.Scan(&hostName)
+		allHost = append(allHost,hostName)
+        }
+	hostMap := map[string]interface{}{
+		"hosts": allHost,
+	}
+
+
+	//Fetch all Parent groups and handle SQL error
         database, _ := sql.Open("sqlite3", "./ansible.db")
         rows, err :=
                 database.Query("SELECT rowid,name FROM parentgroups ORDER BY name ASC")
@@ -44,18 +66,11 @@ func getParentList() map[string]interface{} {
                 fmt.Println("SQL select error: ")
                 log.Fatal(err)
         }
-	//var allParent []string
-        var name string
-	var groupName string
-	var parentVarName string
-	var parentVarValue string
-	var rowid int
-        var f = make(map[string]interface{})
 	//Create map from all children of the Parent
         for rows.Next() {
-		var allGroups []string
-		var allVars = make(map[string]string)
-		rows.Scan(&rowid, &name)
+	        var allGroup []string
+	        var allVars = make(map[string]string)
+		rows.Scan(&rowid, &parentName)
 		groupAssoc, err :=
 			database.Query("SELECT name FROM hostgroups WHERE rowid IN (SELECT group_id FROM parent_child WHERE parent_id=" + strconv.Itoa(rowid) + ");")
 	        if err != nil {
@@ -64,7 +79,7 @@ func getParentList() map[string]interface{} {
 		}
 		for groupAssoc.Next() {
 			groupAssoc.Scan(&groupName)
-			allGroups = append(allGroups,groupName)
+			allGroup = append(allGroup,groupName)
 		}
 		parentVars, err :=
 			database.Query("SELECT parent_var, value FROM parentvars WHERE parent_id=" + strconv.Itoa(rowid))
@@ -76,16 +91,17 @@ func getParentList() map[string]interface{} {
 			parentVars.Scan(&parentVarName, &parentVarValue)
 			allVars[parentVarName] = parentVarValue
 		}
-		m := map[string]interface{}{
-			"children": allGroups,
+		parentMap := map[string]interface{}{
+			"children": allGroup,
 			"vars": allVars,
-
                 }
+//		combinedMap["all"] = map[string]interface{}{"hosts": allHost, parentName: parentMap}
 
-		f[name] = m
+		combinedMap[parentName] = parentMap
 	}
-
-        return f
+//        f["hosts"] = allHost
+	combinedMap["all"] = hostMap
+        return combinedMap
 }
 /*func getAllList() struct {
         database, _ := sql.Open("sqlite3", "./ansible.db")
@@ -123,7 +139,7 @@ func ansibleQuery(w http.ResponseWriter, r *http.Request) {
 					allHosts = append(allHosts,name)
 				}
 			        m := map[string][]string{
-		        	        "hosts": allHosts,
+				        "hosts": allHosts,
 			        }
 
 			        f := map[string]map[string][]string{
@@ -131,7 +147,7 @@ func ansibleQuery(w http.ResponseWriter, r *http.Request) {
 			        }
 			        json.NewEncoder(w).Encode(f)
 			case "test":
-			         m := getParentList()
+			         m := getGroupList()
 				 json.NewEncoder(w).Encode(m)
 			default:
 				fmt.Fprintf(w, "Request is not supported")
