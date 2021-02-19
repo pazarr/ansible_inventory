@@ -9,30 +9,47 @@ import (
     "log"
 //    "os"
 //    "text/template"
-
     _ "github.com/mattn/go-sqlite3"
 )
 
-func getHostVars(ansibleHostName string) {
-    database, _ := sql.Open("sqlite3", "./ansible.db")
-    rows, _ := database.Query("SELECT host_var,value FROM hostvars WHERE host_id IN (SELECT rowid FROM hosts WHERE name="+ ansibleHostName +");")
-    var rowid int
-    var name string
-    for rows.Next() {
-        rows.Scan(&rowid, &name)
-        fmt.Println(strconv.Itoa(rowid) + ": " + name )
-    }
+func getHostDetails(hostName string) map[string]string {
+        var allVars = make(map[string]string)
+        //set local variables
+        var hostVarName string
+        var hostVarValue string
+       //processing query result
+       database, _ := sql.Open("sqlite3", "./ansible.db")
+       hostVars, err :=
+	       database.Query("SELECT host_var, value FROM hostvars WHERE host_id = (SELECT rowid FROM hosts WHERE name='" + hostName + "');")
+	if err != nil {
+		fmt.Println("SQL select error: ")
+		log.Fatal(err)
+	}
+	for hostVars.Next() {
+		hostVars.Scan(&hostVarName, &hostVarValue)
+		allVars[hostVarName] = hostVarValue
+	}
+        return allVars
 }
 
-func getHostList() *sql.Rows {
+func getHostList() map[string]interface{} {
+        var allHost []string
+	var hostName string
         database, _ := sql.Open("sqlite3", "./ansible.db")
-        rows, err :=
+        fetchAllHost, err :=
                 database.Query("SELECT name FROM hosts ORDER BY name ASC")
         if err != nil {
 		fmt.Println("SQL select error: ")
 		log.Fatal(err)
 	}
-	return rows
+        for fetchAllHost.Next() {
+                fetchAllHost.Scan(&hostName)
+                allHost = append(allHost,hostName)
+        }
+        hostMap := map[string]interface{}{
+                "hosts": allHost,
+        }
+	return hostMap
 }
 
 func getMetaData() map[string]interface{} {
@@ -69,27 +86,15 @@ func getMetaData() map[string]interface{} {
 	return hostMap
 }
 
-
-func getGroupList() map[string]interface{} {
+func getAllList() map[string]interface{} {
 //Set local variables
         var parentName string
         var groupName string
-	var hostName string
         var parentVarName string
         var parentVarValue string
-        var rowid int
 	var combinedMap = make(map[string]interface{})
-//Fetch all hosts
-	var allHost []string
-	fetchAllHost := getHostList()
-	for fetchAllHost.Next() {
-		fetchAllHost.Scan(&hostName)
-		allHost = append(allHost,hostName)
-        }
-	hostMap := map[string]interface{}{
-		"hosts": allHost,
-	}
-        combinedMap["all"] = hostMap
+//Set all host list
+        combinedMap["all"] = getHostList()
 // Set all host metadata
         combinedMap["_meta"] = getMetaData()
 
@@ -105,9 +110,10 @@ func getGroupList() map[string]interface{} {
         for rows.Next() {
 	        var allGroup []string
 	        var allVars = make(map[string]string)
-		rows.Scan(&rowid, &parentName)
+		var rowId int
+		rows.Scan(&rowId, &parentName)
 		groupAssoc, err :=
-			database.Query("SELECT name FROM hostgroups WHERE rowid IN (SELECT group_id FROM parent_child WHERE parent_id=" + strconv.Itoa(rowid) + ");")
+			database.Query("SELECT name FROM hostgroups WHERE rowid IN (SELECT group_id FROM parent_child WHERE parent_id=" + strconv.Itoa(rowId) + ");")
 	        if err != nil {
 			fmt.Println("SQL select error: ")
 			log.Fatal(err)
@@ -117,7 +123,7 @@ func getGroupList() map[string]interface{} {
 			allGroup = append(allGroup,groupName)
 		}
 		parentVars, err :=
-			database.Query("SELECT parent_var, value FROM parentvars WHERE parent_id=" + strconv.Itoa(rowid))
+			database.Query("SELECT parent_var, value FROM parentvars WHERE parent_id=" + strconv.Itoa(rowId))
 		if err != nil {
 			fmt.Println("SQL select error: ")
 			log.Fatal(err)
@@ -130,24 +136,12 @@ func getGroupList() map[string]interface{} {
 			"children": allGroup,
 			"vars": allVars,
                 }
-
 		combinedMap[parentName] = parentMap
 	}
         return combinedMap
 }
-/*func getAllList() struct {
-        database, _ := sql.Open("sqlite3", "./ansible.db")
-        rows, err :=
-                database.Query("SELECT name FROM hosts ORDER BY name ASC")
-        if err != nil {
-                fmt.Println("SQL select error: ")
-                log.Fatal(err)
-        }
 
-}
-*/
 func ansibleQuery(w http.ResponseWriter, r *http.Request) {
-	var allHosts []string
         if r.URL.Path != "/ansible-query" {
                 http.Error(w, "404 not found.", http.StatusNotFound)
                 return
@@ -164,24 +158,11 @@ func ansibleQuery(w http.ResponseWriter, r *http.Request) {
 		switch ansibleQueryType {
 			case "list":
 				w.Header().Add("Content-Type", "application/json")
-				rows := getHostList()
-				var name string
-				for rows.Next() {
-					rows.Scan(&name)
-					allHosts = append(allHosts,name)
-				}
-			        m := map[string][]string{
-				        "hosts": allHosts,
-			        }
+			        json.NewEncoder(w).Encode(getAllList())
+			case "host":
+				w.Header().Add("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(getHostDetails(r.FormValue("hostname")))
 
-			        f := map[string]map[string][]string{
-			                "all": m,
-			        }
-			        json.NewEncoder(w).Encode(f)
-			case "test":
-			         m := getGroupList()
-				 //m := getMetaData()
-				 json.NewEncoder(w).Encode(m)
 			default:
 				fmt.Fprintf(w, "Request is not supported")
 			}
