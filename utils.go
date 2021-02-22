@@ -3,12 +3,8 @@ package main
 import (
     "database/sql"
     "fmt"
-//    "encoding/json"
     "strconv"
-//    "net/http"
     "log"
-//    "os"
-//    "text/template"
     _ "github.com/mattn/go-sqlite3"
 )
 

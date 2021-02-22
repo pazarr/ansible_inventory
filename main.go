@@ -1,14 +1,10 @@
 package main
 
 import (
-//    "database/sql"
     "fmt"
     "encoding/json"
-//    "strconv"
     "net/http"
     "log"
-//    "os"
-//    "text/template"
     _ "github.com/mattn/go-sqlite3"
 )
 
@@ -17,6 +13,7 @@ func ansibleQuery(w http.ResponseWriter, r *http.Request) {
                 http.Error(w, "404 not found.", http.StatusNotFound)
                 return
         }
+	w.Header().Add("Content-Type", "application/json")
         switch r.Method {
         case "GET":
                  http.ServeFile(w, r, "html/query.html")
@@ -28,15 +25,17 @@ func ansibleQuery(w http.ResponseWriter, r *http.Request) {
                 ansibleQueryType := r.FormValue("q")
 		switch ansibleQueryType {
 			case "list":
-				w.Header().Add("Content-Type", "application/json")
 			        json.NewEncoder(w).Encode(getAllList())
 			case "host":
-				w.Header().Add("Content-Type", "application/json")
+				//hostName := getHostDetails(r.FormValue("hostname"))
 				json.NewEncoder(w).Encode(getHostDetails(r.FormValue("hostname")))
-
 			default:
-				fmt.Fprintf(w, "Request is not supported")
-			}
+				var postKV = make(map[string][]string)
+				for k, v := range r.Form {
+					postKV[k] = v
+				}
+				apiCall(postKV)
+		}
         default:
                 fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
         }
