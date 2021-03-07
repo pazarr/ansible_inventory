@@ -16,6 +16,7 @@ func ansibleQuery(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
         switch r.Method {
         case "GET":
+		 w.Header().Add("Content-Type", "text/html")
                  http.ServeFile(w, r, "html/query.html")
         case "POST":
                 if err := r.ParseForm(); err != nil {
