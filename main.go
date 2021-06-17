@@ -23,7 +23,7 @@ func ansibleIndex(w http.ResponseWriter, r *http.Request) {
 
         switch r.Method {
         case "GET":
-                 http.ServeFile(w, r, "html/index.html")
+                 http.ServeFile(w, r, "/var/html/index.html")
         case "POST":
                 if err := r.ParseForm(); err != nil {
                         fmt.Fprintf(w, "ParseForm() err: %v", err)
