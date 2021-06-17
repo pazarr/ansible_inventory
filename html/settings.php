@@ -1,10 +1,10 @@
 <?php
 date_default_timezone_set('UTC');
 #Databases setup for the beta instance
-$host = "localhost";
-$database = "ans_inv";
-$db_user = "ansible";
-$db_passwd = "ansible";
+$host = getenv('DATABASE_HOST');
+$database = getenv('DATABASE_NAME');
+$db_user = getenv('DATABASE_USER');
+$db_passwd = getenv('DATABASE_PASS');
 #Connection setup
 #Mysql connection and testing
 $link = mysqli_connect($host, $db_user, $db_passwd, $database);
