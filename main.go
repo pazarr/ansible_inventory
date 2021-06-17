@@ -5,42 +5,15 @@ import (
     "encoding/json"
     "net/http"
     "log"
+    "os"
     _ "github.com/mattn/go-sqlite3"
 )
-
-func ansibleQuery(w http.ResponseWriter, r *http.Request) {
-        if r.URL.Path != "/ansible-query" {
-                http.Error(w, "404 not found.", http.StatusNotFound)
-                return
-        }
-	w.Header().Add("Content-Type", "application/json")
-        switch r.Method {
-        case "GET":
-		 w.Header().Add("Content-Type", "text/html")
-                 http.ServeFile(w, r, "html/query.html")
-        case "POST":
-                if err := r.ParseForm(); err != nil {
-                        fmt.Fprintf(w, "ParseForm() err: %v", err)
-                        return
-                }
-                ansibleQueryType := r.FormValue("q")
-		switch ansibleQueryType {
-			case "list":
-			        json.NewEncoder(w).Encode(getAllList())
-			case "host":
-				//hostName := getHostDetails(r.FormValue("hostname"))
-				json.NewEncoder(w).Encode(getHostDetails(r.FormValue("hostname")))
-			default:
-				var postKV = make(map[string][]string)
-				for k, v := range r.Form {
-					postKV[k] = v
-				}
-				apiCall(postKV)
-		}
-        default:
-                fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
-        }
-}
+var databaseHost string
+var databasePort string
+var databaseUser string
+var databasePass string
+var databaseName string
+var databaseConnection string
 
 func ansibleIndex(w http.ResponseWriter, r *http.Request) {
         if r.URL.Path != "/" {
@@ -52,24 +25,58 @@ func ansibleIndex(w http.ResponseWriter, r *http.Request) {
         case "GET":
                  http.ServeFile(w, r, "html/index.html")
         case "POST":
-                // Call ParseForm() to parse the raw query and update r.PostForm and r.Form.
                 if err := r.ParseForm(); err != nil {
                         fmt.Fprintf(w, "ParseForm() err: %v", err)
                         return
                 }
-                fmt.Fprintf(w, "Post from website! r.PostFrom = %v\n", r.PostForm)
-                name := r.FormValue("name")
-                address := r.FormValue("address")
-                fmt.Fprintf(w, "Name = %s\n", name)
-                fmt.Fprintf(w, "Address = %s\n", address)
+                ansibleQueryType := r.FormValue("query")
+                switch ansibleQueryType {
+                        case "list":
+                                json.NewEncoder(w).Encode(getAllList())
+                        case "host":
+                                //hostName := getHostDetails(r.FormValue("hostname"))
+                                json.NewEncoder(w).Encode(getHostDetails(r.FormValue("hostname")))
+                        default:
+                                var postKV = make(map[string][]string)
+                                for k, v := range r.Form {
+                                        postKV[k] = v
+                                }
+                                apiCall(postKV)
+                }
         default:
                 fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
         }
 }
 
 func main() {
+        databaseHost, err := os.LookupEnv("DATABASE_HOST")
+        if err == false {
+                fmt.Printf("ENV VAR ERROR DATABASE_HOST")
+                os.Exit(2)
+        }
+	databasePort, err := os.LookupEnv("DATABASE_PORT")
+        if err == false {
+                fmt.Printf("ENV VAR ERROR DATABASE_PORT")
+                os.Exit(2)
+        }
+	databaseUser, err := os.LookupEnv("DATABASE_USER")
+        if err == false {
+                fmt.Printf("ENV VAR ERROR DATABASE_USER")
+                os.Exit(2)
+        }
+	databasePass, err := os.LookupEnv("DATABASE_PASS")
+	        if err == false {
+                fmt.Printf("ENV VAR ERROR DATABASE_PASS")
+                os.Exit(2)
+        }
+	databaseName, err := os.LookupEnv("DATABASE_NAME")
+	if err == false {
+		fmt.Printf("ENV VAR ERROR DATABASE_NAME")
+		os.Exit(2)
+        }
+	databaseConnection = databaseUser + ":" + databasePass + "@tcp(" + databaseHost + ":" + databasePort + ")/" + databaseName
+
 	argsPort := "8080"
-        http.HandleFunc("/ansible-query", ansibleQuery)
 	http.HandleFunc("/", ansibleIndex)
 
         fmt.Printf("Starting server...\n")

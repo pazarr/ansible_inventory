@@ -5,18 +5,28 @@ import (
     "fmt"
     "strconv"
     "log"
-    _ "github.com/mattn/go-sqlite3"
+    "time"
+//    _ "github.com/mattn/go-sqlite3"
+    _ "github.com/go-sql-driver/mysql"
 )
 
 func getHostDetails(hostName string) map[string]string {
+        //DB setup
+        database, err := sql.Open("mysql", databaseConnection)
+        if err != nil {
+                panic(err)
+        }
+        database.SetConnMaxLifetime(time.Minute * 3)
+        database.SetMaxOpenConns(10)
+        database.SetMaxIdleConns(10)
+        //Vars
         var allVars = make(map[string]string)
         //set local variables
         var hostVarName string
         var hostVarValue string
-       //processing query result
-       database, _ := sql.Open("sqlite3", "./ansible.db")
+//       database, _ := sql.Open("sqlite3", "./ansible.db")
        hostVars, err :=
-	       database.Query("SELECT host_var, value FROM hostvars WHERE host_id = (SELECT rowid FROM hosts WHERE name='" + hostName + "');")
+	       database.Query("SELECT host_var, value FROM hostvars WHERE host_id = (SELECT host_id FROM hosts WHERE name='" + hostName + "');")
 	if err != nil {
 		fmt.Println("SQL select error: ")
 		log.Fatal(err)
@@ -29,9 +39,18 @@ func getHostDetails(hostName string) map[string]string {
 }
 
 func getHostList() map[string]interface{} {
+        //DB setup
+        database, err := sql.Open("mysql", databaseConnection)
+        if err != nil {
+                panic(err)
+        }
+        database.SetConnMaxLifetime(time.Minute * 3)
+        database.SetMaxOpenConns(10)
+        database.SetMaxIdleConns(10)
+        //Vars
         var allHost []string
 	var hostName string
-        database, _ := sql.Open("sqlite3", "./ansible.db")
+//        database, _ := sql.Open("sqlite3", "./ansible.db")
         fetchAllHost, err :=
                 database.Query("SELECT name FROM hosts ORDER BY name ASC")
         if err != nil {
@@ -49,12 +68,21 @@ func getHostList() map[string]interface{} {
 }
 
 func getMetaData() map[string]interface{} {
+        //DB setup
+        database, err := sql.Open("mysql", databaseConnection)
+        if err != nil {
+                panic(err)
+        }
+        database.SetConnMaxLifetime(time.Minute * 3)
+        database.SetMaxOpenConns(10)
+        database.SetMaxIdleConns(10)
+        //Vars
 	//var hostMetaData = make(map[string]interface{})
 	var hostMap = make(map[string]interface{})
 	var allVars = make(map[string]string)
-        database, _ := sql.Open("sqlite3", "./ansible.db")
+//        database, _ := sql.Open("sqlite3", "./ansible.db")
         allHost, err :=
-                database.Query("SELECT rowid,name FROM hosts ORDER BY name ASC")
+                database.Query("SELECT host_id,name FROM hosts ORDER BY name ASC")
         if err != nil {
                 fmt.Println("SQL select error: ")
                 log.Fatal(err)
@@ -83,7 +111,15 @@ func getMetaData() map[string]interface{} {
 }
 
 func getAllList() map[string]interface{} {
-//Set local variables
+        //DB setup
+        database, err := sql.Open("mysql", databaseConnection)
+        if err != nil {
+                panic(err)
+        }
+        database.SetConnMaxLifetime(time.Minute * 3)
+        database.SetMaxOpenConns(10)
+        database.SetMaxIdleConns(10)
+        //Vars
         var parentName string
         var groupName string
         var parentVarName string
@@ -94,9 +130,9 @@ func getAllList() map[string]interface{} {
 // Set all host metadata
         combinedMap["_meta"] = getMetaData()
 //Fetch all Parent groups and handle SQL error
-        database, _ := sql.Open("sqlite3", "./ansible.db")
+//        database, _ := sql.Open("sqlite3", "./ansible.db")
         rows, err :=
-                database.Query("SELECT rowid,name FROM parentgroups ORDER BY name ASC")
+                database.Query("SELECT parent_id,name FROM parentgroups ORDER BY name ASC")
         if err != nil {
                 fmt.Println("SQL select error: ")
                 log.Fatal(err)
@@ -108,7 +144,7 @@ func getAllList() map[string]interface{} {
 		var rowId int
 		rows.Scan(&rowId, &parentName)
 		groupAssoc, err :=
-			database.Query("SELECT name FROM hostgroups WHERE rowid IN (SELECT group_id FROM parent_child WHERE parent_id=" + strconv.Itoa(rowId) + ");")
+			database.Query("SELECT name FROM hostgroups WHERE group_id IN (SELECT group_id FROM parent_child WHERE parent_id=" + strconv.Itoa(rowId) + ");")
 	        if err != nil {
 			fmt.Println("SQL select error: ")
 			log.Fatal(err)

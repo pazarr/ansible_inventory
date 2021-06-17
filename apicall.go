@@ -5,10 +5,21 @@ import (
     "fmt"
     "strconv"
     "log"
-    _ "github.com/mattn/go-sqlite3"
+    "time"
+//    _ "github.com/mattn/go-sqlite3"
+    _ "github.com/go-sql-driver/mysql"
 )
 
 func apiCall(fromPost map[string][]string) string {
+	//DB setup
+        database, err := sql.Open("mysql", "root:Nn1254E2@tcp(127.0.0.1:3306)/ansible_inventory")
+        if err != nil {
+                panic(err)
+        }
+        database.SetConnMaxLifetime(time.Minute * 3)
+        database.SetMaxOpenConns(10)
+        database.SetMaxIdleConns(10)
+	//Vars
 	var returnMsg = "Invalid call"
 	if len(fromPost["q"][0]) == 0 {
 		returnMsg = "Invalid query"
@@ -18,7 +29,7 @@ func apiCall(fromPost map[string][]string) string {
 			case "addHost":
 				if len(fromPost["hostname"]) != 0 && len(fromPost["group"]) != 0 {
 					var groupId int
-					database, _ := sql.Open("sqlite3", "./ansible.db")
+//					database, _ := sql.Open("sqlite3", "./ansible.db")
 					insert, err := database.Exec("INSERT INTO hosts(name) values(\"" + fromPost["hostname"][0] + "\")")
 					if err != nil {
 						fmt.Println("SQL error: ")
@@ -44,7 +55,7 @@ func apiCall(fromPost map[string][]string) string {
 			case "removeHost":
 				if len (fromPost["hostname"]) != 0 {
 					var hostId int64
-					database, _ := sql.Open("sqlite3", "./ansible.db")
+//					database, _ := sql.Open("sqlite3", "./ansible.db")
 					cursor := database.QueryRow("SELECT rowid FROM hosts WHERE name=\"" + fromPost["hostname"][0] + "\"")
 					cursor.Scan(&hostId)
 					if hostId <= 0 {
@@ -62,7 +73,7 @@ func apiCall(fromPost map[string][]string) string {
                                 if len(fromPost["hostname"]) != 0 && len(fromPost["group"]) != 0 {
                                         var hostId int64
 					var groupId int64
-                                        database, _ := sql.Open("sqlite3", "./ansible.db")
+//                                        database, _ := sql.Open("sqlite3", "./ansible.db")
                                         cursor := database.QueryRow("SELECT rowid FROM hosts WHERE name=\"" + fromPost["hostname"][0] + "\"")
                                         cursor.Scan(&hostId)
                                         cursor = database.QueryRow("SELECT rowid FROM hostgroups WHERE name=\"" + fromPost["group"][0] + "\"")
