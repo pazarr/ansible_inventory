@@ -1,0 +1,48 @@
+<style>
+.navbar {
+  margin-bottom: 0;
+  border-radius: 0;
+}
+
+footer {
+  background-color: #99c2ff;
+  padding: 25px;
+}
+
+.carousel-inner img {
+  width: 100%; /* Set width to 100% */
+  margin: auto;
+  min-height:200px;
+}
+
+@media (max-width: 600px) {
+.carousel-caption {
+  display: none;
+}
+}
+.carousel-indicators li { visibility: hidden; }
+
+.table-fixed{
+  width: 100%;
+  tbody{
+    height:200px;
+    overflow-y:auto;
+    width: 100%;
+    }
+  thead,tbody,tr,td,th{
+    display:block;
+  }
+  tbody{
+    td{
+      float:left;
+    }
+  }
+  thead {
+    tr{
+      th{
+        float:left;
+      }
+    }
+  }
+}
+</style>

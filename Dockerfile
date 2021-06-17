@@ -1,5 +1,5 @@
 FROM busybox
-ADD ansible_inventory /bin/as
-RUN chmod +x /bin/as
+ADD ansible_inventory /bin/
+RUN chmod +x /bin/
 EXPOSE 8080/tcp
-ENTRYPOINT ["/bin/as"]
+ENTRYPOINT ["/bin/ansible_inventory"]
