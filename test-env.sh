@@ -1,11 +1,11 @@
 #!/bin/bash
 dockerDaemon=$(which docker)
 mysqlCLI=$(which mysql)
-export DATABASE_PASS=Nn1254E2
-export DATABASE_NAME=ansible_inventory
-export DATABASE_USER=root
-export DATABASE_PORT=3306
-export DATABASE_HOST=127.0.0.1
+export DATABASE_PASS="Nn1254E2"
+export DATABASE_NAME="ansible_inventory"
+export DATABASE_USER="root"
+export DATABASE_PORT="3306"
+export DATABASE_HOST="127.0.0.1"
 isPortOpen=1
 if [ $(docker container ls -f name=ansible-db |wc -l) -ne 2 ]; then
 	echo -n "Setup new DB container... "
