@@ -9,14 +9,14 @@ import (
 )
 
 func apiCall(fromPost map[string][]string) map[string]interface {} {
-	//DB setup
-        database, err := sql.Open("mysql", databaseConnection)
-        if err != nil {
-                panic(err)
-        }
-        database.SetConnMaxLifetime(time.Minute * 3)
-        database.SetMaxOpenConns(10)
-        database.SetMaxIdleConns(10)
+  //DB setup
+  database, err := sql.Open("mysql", databaseConnection)
+  if err != nil {
+    panic(err)
+  }
+  database.SetConnMaxLifetime(time.Minute * 3)
+  database.SetMaxOpenConns(10)
+  database.SetMaxIdleConns(10)
 	//Vars
   currentTime := time.Now()
 	returnMsg := make(map[string]interface {})
@@ -30,22 +30,43 @@ func apiCall(fromPost map[string][]string) map[string]interface {} {
 		switch fromPost["query"][0] {
 			case "list":
 				return getAllList()
+        fmt.Printf("List call")
 				break
 			case "host":
-				if len(fromPost["hostname"]) != 0 {
-					return getHostDetails(fromPost["hostname"][0])
-                                } else {
-					returnMsg["Error"] = "Error, no arguments has received"
-                                }
-				break
+        if len(fromPost["hostname"]) != 0 {
+          fmt.Printf("Host call")
+          return getHostDetails(fromPost["hostname"][0])
+        } else {
+          fmt.Printf("Hostname argument is missing")
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Error"
+          returnMsg["Message"] = "Hostname argument is missing"
+        }
+        break
 			case "addHost":
 				if len(fromPost["hostname"]) != 0 && len(fromPost["group"]) != 0 {
-					var groupId int
+					var groupId, count int
+          var hostId int64
+// Is hostgroup name valid?
           cursor := database.QueryRow("SELECT group_id from hostgroups WHERE name=\"" + fromPost["group"][0] +"\"")
-					cursor.Scan(&groupId)
-					if groupId != 0 {
-// If we have the group, we insert the new host to inventory
-            insert, err := database.Exec("INSERT INTO hosts(name) values(\"" + fromPost["hostname"][0] + "\")")
+					err := cursor.Scan(&groupId)
+					if ( err != nil ) {
+            fmt.Printf("Group doesn't exist")
+            returnMsg["Timestamp"] = currentTime.String()
+            returnMsg["Level"] = "Error"
+            returnMsg["Message"] = "Group doesn't exist"
+            break
+          }
+          cursor = database.QueryRow("SELECT count(*) from hosts WHERE name=\"" + fromPost["hostname"][0] +"\"")
+          cursor.Scan(&count)
+          if ( count != 0 ) {
+            fmt.Printf("Host name is already registered")
+            returnMsg["Timestamp"] = currentTime.String()
+            returnMsg["Level"] = "Error"
+            returnMsg["Message"] = "This host name is already registeres"
+            break
+          }
+          insert, err := database.Exec("INSERT INTO hosts(name) values(\"" + fromPost["hostname"][0] + "\")")
 // If SQL fails we report error and break
             if err != nil {
               fmt.Println( err.Error())
@@ -53,17 +74,15 @@ func apiCall(fromPost map[string][]string) map[string]interface {} {
               returnMsg["Level"] = "Error"
               returnMsg["Message"] = err.Error
               break
-              //log.Fatal(err)
             }
 // Fetch ID from last SQL query
-            hostId, err := insert.LastInsertId()
+            hostId, err = insert.LastInsertId()
             if err != nil {
               fmt.Println(err.Error())
               returnMsg["Timestamp"] = currentTime.String()
               returnMsg["Level"] = "Error"
               returnMsg["Message"] = err.Error
               break
-              //log.Fatal(err)
             }
             _, err = database.Exec("INSERT INTO memberships values(" + strconv.Itoa(groupId) + "," + strconv.FormatInt(hostId, 10) + ")")
             if err != nil {
@@ -72,41 +91,31 @@ func apiCall(fromPost map[string][]string) map[string]interface {} {
               returnMsg["Level"] = "Error"
               returnMsg["Message"] = err.Error
               break
-              //log.Fatal(err)
-            } else {
-              fmt.Printf("Server name: %s with host ID: %s", fromPost["hostname"][0], strconv.FormatInt(hostId, 10))
-              returnMsg["Timestamp"] = currentTime.String()
-              returnMsg["Level"] = "Info"
-              returnMsg["Message"] = "Successfully added new host: " + fromPost["hostname"][0]
-              break
             }
+            fmt.Printf("Server name: %s with host ID: %s", fromPost["hostname"][0], strconv.FormatInt(hostId, 10))
+            returnMsg["Timestamp"] = currentTime.String()
+            returnMsg["Level"] = "Info"
+            returnMsg["Message"] = "Successfully added new host: " + fromPost["hostname"][0]
 				  } else {
-          fmt.Printf("Wrong group name provided")
-          returnMsg["Timestamp"] = currentTime.String()
-          returnMsg["Level"] = "Error"
-          returnMsg["Message"] = "Wrong group name provided"
-          break
-				}
-        } else {
-          fmt.Printf("Missing argument")
-          returnMsg["Timestamp"] = currentTime.String()
-          returnMsg["Level"] = "Error"
-          returnMsg["Message"] = "Missing argument"
+              fmt.Printf("Missing argument")
+              returnMsg["Timestamp"] = currentTime.String()
+              returnMsg["Level"] = "Error"
+              returnMsg["Message"] = "Missing argument"
         }
   			break
 			case "removeHost":
 				if len(fromPost["hostname"]) != 0 {
 					var hostId int64
 					cursor := database.QueryRow("SELECT host_id FROM hosts WHERE name=\"" + fromPost["hostname"][0] + "\"")
-					cursor.Scan(&hostId)
-					if hostId <= 0 {
+					err := cursor.Scan(&hostId)
+					if ( err == sql.ErrNoRows ) {
             fmt.Printf("No host " + fromPost["hostname"][0] + " found")
             returnMsg["Timestamp"] = currentTime.String()
             returnMsg["Level"] = "Error"
             returnMsg["Message"] = "No host " + fromPost["hostname"][0] +" found"
             break
           }
-					_, err := database.Exec("DELETE FROM hosts WHERE host_id=\"" + strconv.FormatInt(hostId, 10) + "\"")
+					_, err = database.Exec("DELETE FROM hosts WHERE host_id=\"" + strconv.FormatInt(hostId, 10) + "\"")
           if err != nil {
             fmt.Println("SQL error during host delete " + err.Error())
             returnMsg["Timestamp"] = currentTime.String()
@@ -117,7 +126,7 @@ func apiCall(fromPost map[string][]string) map[string]interface {} {
             fmt.Println("Deleted host from inventory: " + fromPost["hostname"][0])
             returnMsg["Timestamp"] = currentTime.String()
             returnMsg["Level"] = "Info"
-            returnMsg["Message"] = "Removed " + fromPost["hostname"][0] + " from inventory"
+            returnMsg["Message"] = "Removed host" + fromPost["hostname"][0] + " from inventory"
           }
         } else {
           fmt.Println("Missing hostname from the query")
