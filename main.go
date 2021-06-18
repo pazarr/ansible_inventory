@@ -20,7 +20,6 @@ func ansibleIndex(w http.ResponseWriter, r *http.Request) {
                 http.Error(w, "404 not found.", http.StatusNotFound)
                 return
         }
-
         switch r.Method {
         case "GET":
                  http.ServeFile(w, r, "/var/html/index.html")
@@ -34,19 +33,6 @@ func ansibleIndex(w http.ResponseWriter, r *http.Request) {
 			postKV[k] = v
 		}
 		json.NewEncoder(w).Encode(apiCall(postKV))
-//                switch ansibleQueryType {
-//                       case "list":
-//                                json.NewEncoder(w).Encode(getAllList())
-//                        case "host":
-//                                //hostName := getHostDetails(r.FormValue("hostname"))
-//                                json.NewEncoder(w).Encode(getHostDetails(r.FormValue("hostname")))
-//                        default:
-//                                var postKV = make(map[string][]string)
-//                                for k, v := range r.Form {
-//                                        postKV[k] = v
-//                                }
-//                                apiCall(postKV)
-//                }
         default:
                 fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
         }
