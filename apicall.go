@@ -232,6 +232,52 @@ func apiCall(fromPost map[string][]string) map[string]interface {} {
          }
        }
       break
+    case "addGroupVar":
+      if len(fromPost["group"]) != 0 && len(fromPost["groupvar"]) != 0 && len(fromPost["value"]) != 0 {
+        var groupId int64
+        var qCount int
+//Is hostname is valid?
+        cursor := database.QueryRow("SELECT group_id from hostgroups WHERE name=\"" + fromPost["group"][0] +"\"")
+        err := cursor.Scan(&groupId)
+        if ( err == sql.ErrNoRows ) {
+          fmt.Printf("Hostgroup name is not registered")
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Error"
+          returnMsg["Message"] = "This hostgroup name is not registered"
+          break
+        }
+        cursor = database.QueryRow("SELECT * from groupvars WHERE group_id=" + strconv.FormatInt(groupId, 10) + " AND group_var=\"" + fromPost["groupvar"][0] + "\"")
+        err = cursor.Scan(&qCount)
+        if ( err == sql.ErrNoRows ) {
+          _,err = database.Exec("INSERT INTO groupvars(group_id,group_var,value) VALUES(" + strconv.FormatInt(groupId, 10) + ",\"" + fromPost["groupvar"][0] + "\",\"" + fromPost["value"][0] + "\")")
+          if err != nil {
+            fmt.Printf(err.Error())
+            returnMsg["Timestamp"] = currentTime.String()
+            returnMsg["Level"] = "Error"
+            returnMsg["Message"] = err.Error()
+            break
+          }
+          fmt.Printf("Register new hostgroup variable")
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Info"
+          returnMsg["Message"] = "Register new hostgroup variable"
+          break
+        } else {
+          _,err = database.Exec("UPDATE groupvars SET value=\"" + fromPost["value"][0] + "\" WHERE group_id=\"" + strconv.FormatInt(groupId, 10) + "\" AND group_var=\"" + fromPost["groupvar"][0] + "\"")
+          if err != nil {
+            fmt.Printf(err.Error())
+            returnMsg["Timestamp"] = currentTime.String()
+            returnMsg["Level"] = "Error"
+            returnMsg["Message"] = err.Error()
+            break
+          }
+          fmt.Printf("Update hostgroup variable")
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Info"
+          returnMsg["Message"] = "Update hostgroup variable"
+        }
+      }
+     break
    }
   }
   return returnMsg
