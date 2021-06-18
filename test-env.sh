@@ -25,3 +25,4 @@ if [ $(docker container ls -f name=ansible-db |wc -l) -ne 2 ]; then
 	$mysqlCLI -h $DATABASE_HOST -P $DATABASE_PORT -u $DATABASE_USER --password=$DATABASE_PASS $DATABASE_NAME < ./inventory_ui/deps/ans_inv_17_06_2021.sql
 	echo "Done"
 fi
+echo "Test environment is ready"
