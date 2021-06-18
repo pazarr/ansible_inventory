@@ -9,7 +9,7 @@ import (
     _ "github.com/go-sql-driver/mysql"
 )
 
-func apiCall(fromPost map[string][]string) string {
+func apiCall(fromPost map[string][]string) map[string]interface {} {
 	//DB setup
         database, err := sql.Open("mysql", databaseConnection)
         if err != nil {
@@ -19,12 +19,22 @@ func apiCall(fromPost map[string][]string) string {
         database.SetMaxOpenConns(10)
         database.SetMaxIdleConns(10)
 	//Vars
-	var returnMsg = "Invalid call"
+	var returnMsg map[string]interface {}
 	if len(fromPost["query"][0]) == 0 {
-		returnMsg = "Invalid query"
+		returnMsg["Error"] = "Invalid query"
 	} else {
 	//processing query result
-		switch fromPost["q"][0] {
+		switch fromPost["query"][0] {
+			case "list":
+				return getAllList()
+				break
+			case "host":
+				if len(fromPost["hostname"]) != 0 {
+					return getHostDetails(fromPost["hostname"][0])
+                                } else {
+					returnMsg["Error"] = "Error, no arguments has received"
+                                }
+				break
 			case "addHost":
 				if len(fromPost["hostname"]) != 0 && len(fromPost["group"]) != 0 {
 					var groupId int
@@ -46,10 +56,10 @@ func apiCall(fromPost map[string][]string) string {
 	                                                log.Fatal(err)
 	                                        }
 						fmt.Printf("Server name: %s with host ID: %s", fromPost["hostname"][0], strconv.FormatInt(hostId, 10))
-						returnMsg = "Successfully added new host: " + fromPost["hostname"][0]
+						returnMsg["Msg"] = "Successfully added new host: " + fromPost["hostname"][0]
 					}
 				} else {
-					returnMsg = "Error, no arguments has received"
+					returnMsg["Error"] = "no arguments has received"
 				}
 				break
 			case "removeHost":
@@ -61,14 +71,14 @@ func apiCall(fromPost map[string][]string) string {
 						fmt.Println("Host is not found with name: " + fromPost["hostname"][0])
 					} else {
 					}
-						_, err := database.Exec("DELETE FROM hosts WHERE rowid=\"" + strconv.FormatInt(hostId, 10) + "\"")
+						_, err := database.Exec("DELETE FROM hosts WHERE host_id=\"" + strconv.FormatInt(hostId, 10) + "\"")
                                                 if err != nil {
                                                         fmt.Println("SQL error during host delete: ")
                                                         log.Fatal(err)
                                                 }
 				}
 				break
-                        case "rmFromGroup":
+                        case "removeFromGroup":
                                 if len(fromPost["hostname"]) != 0 && len(fromPost["group"]) != 0 {
                                         var hostId int64
 					var groupId int64
@@ -82,7 +92,7 @@ func apiCall(fromPost map[string][]string) string {
                                                         fmt.Println("SQL error during membership termination: ")
                                                         log.Fatal(err)
                                                 }
-                                                returnMsg = "Successfully removed: " + fromPost["hostname"][0]
+                                                returnMsg["Msg"] = "Successfully removed: " + fromPost["hostname"][0]
                                         }
                                 }
                                 break

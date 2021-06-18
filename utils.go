@@ -10,7 +10,7 @@ import (
     _ "github.com/go-sql-driver/mysql"
 )
 
-func getHostDetails(hostName string) map[string]string {
+func getHostDetails(hostName string) map[string]interface {} {
         //DB setup
         database, err := sql.Open("mysql", databaseConnection)
         if err != nil {
@@ -20,7 +20,7 @@ func getHostDetails(hostName string) map[string]string {
         database.SetMaxOpenConns(10)
         database.SetMaxIdleConns(10)
         //Vars
-        var allVars = make(map[string]string)
+        var allVars = make(map[string]interface {})
         //set local variables
         var hostVarName string
         var hostVarValue string
