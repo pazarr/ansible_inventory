@@ -103,19 +103,19 @@ func apiCall(fromPost map[string][]string) map[string]interface {} {
               returnMsg["Message"] = "Missing argument"
         }
   			break
-			case "removeHost":
-				if len(fromPost["hostname"]) != 0 {
-					var hostId int64
-					cursor := database.QueryRow("SELECT host_id FROM hosts WHERE name=\"" + fromPost["hostname"][0] + "\"")
-					err := cursor.Scan(&hostId)
-					if ( err == sql.ErrNoRows ) {
+      case "removeHost":
+        if len(fromPost["hostname"]) != 0 {
+        	var hostId int64
+        	cursor := database.QueryRow("SELECT host_id FROM hosts WHERE name=\"" + fromPost["hostname"][0] + "\"")
+        	err := cursor.Scan(&hostId)
+        	if ( err == sql.ErrNoRows ) {
             fmt.Printf("No host " + fromPost["hostname"][0] + " found")
             returnMsg["Timestamp"] = currentTime.String()
             returnMsg["Level"] = "Error"
             returnMsg["Message"] = "No host " + fromPost["hostname"][0] +" found"
             break
           }
-					_, err = database.Exec("DELETE FROM hosts WHERE host_id=\"" + strconv.FormatInt(hostId, 10) + "\"")
+        	_, err = database.Exec("DELETE FROM hosts WHERE host_id=\"" + strconv.FormatInt(hostId, 10) + "\"")
           if err != nil {
             fmt.Println("SQL error during host delete " + err.Error())
             returnMsg["Timestamp"] = currentTime.String()
@@ -135,57 +135,103 @@ func apiCall(fromPost map[string][]string) map[string]interface {} {
           returnMsg["Message"] = "Missing hostname from the query"
         }
         break
-   case "removeFromGroup":
-     if len(fromPost["hostname"]) != 0 && len(fromPost["group"]) != 0 {
-      var hostId int64
-      var groupId int64
-      cursor := database.QueryRow("SELECT host_id FROM hosts WHERE name=\"" + fromPost["hostname"][0] + "\"")
-      err := cursor.Scan(&hostId)
-      if ( err == sql.ErrNoRows ) {
-        fmt.Println("Host is not found")
+      case "removeFromGroup":
+        if len(fromPost["hostname"]) != 0 && len(fromPost["group"]) != 0 {
+        var hostId int64
+        var groupId int64
+        cursor := database.QueryRow("SELECT host_id FROM hosts WHERE name=\"" + fromPost["hostname"][0] + "\"")
+        err := cursor.Scan(&hostId)
+        if ( err == sql.ErrNoRows ) {
+          fmt.Println("Host is not found")
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Error"
+          returnMsg["Message"] = fromPost["hostname"][0] + " host is not found"
+          break
+        }
+        cursor = database.QueryRow("SELECT group_id FROM hostgroups WHERE name=\"" + fromPost["group"][0] + "\"")
+        err = cursor.Scan(&groupId)
+        if ( err == sql.ErrNoRows ) {
+          fmt.Println("Hostsroup is not found")
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Error"
+          returnMsg["Message"] = fromPost["group"][0] + " hostgroup is not found"
+          break
+        }
+        cursor = database.QueryRow("SELECT host_id FROM memberships WHERE host_id=" + strconv.FormatInt(hostId, 10) + " AND group_id=" + strconv.FormatInt(groupId, 10))
+        err = cursor.Scan(&hostId)
+        if ( err == sql.ErrNoRows ) {
+          fmt.Println(fromPost["hostname"][0] +" host is not member of the " + fromPost["group"][0])
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Error"
+          returnMsg["Message"] =  fromPost["hostname"][0] + " host is not member of " + fromPost["group"][0] + " hostgroup"
+          break
+        }
+        _, err = database.Exec("DELETE FROM memberships WHERE host_id=\"" + strconv.FormatInt(hostId, 10) + "\" AND group_id=\"" + strconv.FormatInt(groupId, 10) + "\"")
+        if err != nil {
+          fmt.Println(err.Error())
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Error"
+          returnMsg["Message"] = err.Error()
+          break
+        }
+        fmt.Println("Host removed from hostgroup")
         returnMsg["Timestamp"] = currentTime.String()
-        returnMsg["Level"] = "Error"
-        returnMsg["Message"] = fromPost["hostname"][0] + " host is not found"
-        break
-      }
-      cursor = database.QueryRow("SELECT group_id FROM hostgroups WHERE name=\"" + fromPost["group"][0] + "\"")
-      err = cursor.Scan(&groupId)
-      if ( err == sql.ErrNoRows ) {
-        fmt.Println("Hostsroup is not found")
-        returnMsg["Timestamp"] = currentTime.String()
-        returnMsg["Level"] = "Error"
-        returnMsg["Message"] = fromPost["group"][0] + " hostgroup is not found"
-        break
-      }
-      cursor = database.QueryRow("SELECT host_id FROM memberships WHERE host_id=" + strconv.FormatInt(hostId, 10) + " AND group_id=" + strconv.FormatInt(groupId, 10))
-      err = cursor.Scan(&hostId)
-      if ( err == sql.ErrNoRows ) {
-        fmt.Println(fromPost["hostname"][0] +" host is not member of the " + fromPost["group"][0])
-        returnMsg["Timestamp"] = currentTime.String()
-        returnMsg["Level"] = "Error"
-        returnMsg["Message"] =  fromPost["hostname"][0] + " host is not member of " + fromPost["group"][0] + " hostgroup"
-        break
-      }
-      _, err = database.Exec("DELETE FROM memberships WHERE host_id=\"" + strconv.FormatInt(hostId, 10) + "\" AND group_id=\"" + strconv.FormatInt(groupId, 10) + "\"")
-      if err != nil {
-        fmt.Println(err.Error())
-        returnMsg["Timestamp"] = currentTime.String()
-        returnMsg["Level"] = "Error"
-        returnMsg["Message"] = err.Error()
-        break
-      }
-    } else {
-        fmt.Println("Missing arguments")
-        returnMsg["Timestamp"] = currentTime.String()
-        returnMsg["Level"] = "Error"
-        returnMsg["Message"] = "Missing arguments"
-        break
-    }
-    fmt.Println("Host removed from hostgroup")
-    returnMsg["Timestamp"] = currentTime.String()
-    returnMsg["Level"] = "Info"
-    returnMsg["Message"] = "Host removed from hostgroup"
-    break
+        returnMsg["Level"] = "Info"
+        returnMsg["Message"] = "Host removed from hostgroup"
+        } else {
+          fmt.Println("Missing arguments")
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Error"
+          returnMsg["Message"] = "Missing arguments"
+          break
+       }
+       break
+     case "addHostVar":
+       if len(fromPost["hostname"]) != 0 && len(fromPost["hostvar"]) != 0 && len(fromPost["value"]) != 0 {
+         var hostId int64
+         var qCount int
+//Is hostname is valid?
+         cursor := database.QueryRow("SELECT host_id from hosts WHERE name=\"" + fromPost["hostname"][0] +"\"")
+         err := cursor.Scan(&hostId)
+         if ( err == sql.ErrNoRows ) {
+           fmt.Printf("Host name is not registered")
+           returnMsg["Timestamp"] = currentTime.String()
+           returnMsg["Level"] = "Error"
+           returnMsg["Message"] = "This host name is not registeres"
+           break
+         }
+         cursor = database.QueryRow("SELECT * from hostvars WHERE host_id=" + strconv.FormatInt(hostId, 10) + " AND host_var=\"" + fromPost["hostvar"][0] + "\"")
+         err = cursor.Scan(&qCount)
+         if ( err == sql.ErrNoRows ) {
+           _,err = database.Exec("INSERT INTO hostvars(host_id,host_var,value) VALUES(" + strconv.FormatInt(hostId, 10) + ",\"" + fromPost["hostvar"][0] + "\",\"" + fromPost["value"][0] + "\")")
+           if err != nil {
+             fmt.Printf(err.Error())
+             returnMsg["Timestamp"] = currentTime.String()
+             returnMsg["Level"] = "Error"
+             returnMsg["Message"] = err.Error()
+             break
+           }
+           fmt.Printf("Register new host variable")
+           returnMsg["Timestamp"] = currentTime.String()
+           returnMsg["Level"] = "Info"
+           returnMsg["Message"] = "Register new host variable"
+           break
+         } else {
+           _,err = database.Exec("UPDATE hostvars SET value=\"" + fromPost["value"][0] + "\" WHERE host_id=\"" + strconv.FormatInt(hostId, 10) + "\" AND host_var=\"" + fromPost["hostvar"][0] + "\"")
+           if err != nil {
+             fmt.Printf(err.Error())
+             returnMsg["Timestamp"] = currentTime.String()
+             returnMsg["Level"] = "Error"
+             returnMsg["Message"] = err.Error()
+             break
+           }
+           fmt.Printf("Update host variable")
+           returnMsg["Timestamp"] = currentTime.String()
+           returnMsg["Level"] = "Info"
+           returnMsg["Message"] = "Update host variable"
+         }
+       }
+      break
    }
   }
   return returnMsg
