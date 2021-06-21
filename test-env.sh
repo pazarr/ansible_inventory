@@ -24,19 +24,24 @@ function compileAPI {
 	fi
 }
 function prepareEnv {
-echo "Preparing test environment..."
+echo "Preparing test environment with unique identifier: $randomName"
 	if [ $(docker container ls -f name=inventory-db-$randomName |wc -l) -ne 2 ]; then
-		if [ $(docker network inspect ansible_inventory12 > /dev/null 2>&1; echo $?) -eq 1 ]; then 
+		if [ $(docker network inspect inventory-network-$randomName > /dev/null 2>&1; echo $?) -eq 1 ]; then
 			echo -n "Create docker network..."
-			$dockerCLI network create ansible_inventory
+			$dockerCLI network create inventory-network-$randomName
+			if [ "$?" -ne 0 ]; then
+				echo "We encountered an issue, aborting...."
+				exit 2
+			fi
 			echo " Done"
 		else
 			echo "Conatiner network exists"
 		fi
 		echo -n "Setup new DB container... "
-		$dockerCLI run -p $DATABASE_PORT:3306  --net ansible_inventory --name inventory-db-$randomName -e MARIADB_ROOT_PASSWORD=$DATABASE_PASS -d mariadb:latest > /dev/null
-		if [ $? -ne 0 ];then
-			echo "failed to build api container"
+		$dockerCLI run -p $DATABASE_PORT:3306  --net inventory-network-$randomName --name inventory-db-$randomName -e MARIADB_ROOT_PASSWORD=$DATABASE_PASS -d mariadb:latest > /dev/null
+		if [ "$?" -ne 0 ]; then
+			echo "Failed to build api container..."
+			decommissionEnv
 			exit 2
 		fi
 		echo "Done"
@@ -51,7 +56,14 @@ echo "Preparing test environment..."
 		echo " Done"
 		echo -n "Upload data... "
 		$mysqlCLI -h 127.0.0.1 -P $DATABASE_PORT -u $DATABASE_USER --password=$DATABASE_PASS -e "CREATE DATABASE IF NOT EXISTS $DATABASE_NAME;"
+		errc=$?
 		$mysqlCLI -h 127.0.0.1 -P $DATABASE_PORT -u $DATABASE_USER --password=$DATABASE_PASS $DATABASE_NAME < ./inventory_ui/deps/ans_inv_17_06_2021.sql
+		errc=$((errc+$?))
+		if [ "$errc" -ne 0 ]; then
+			echo "Failed to migrate DB..."
+			decommissionEnv
+			exit 2
+		fi
 		echo "Done"
 	else
 		echo "Test DB container is ready"
@@ -60,7 +72,12 @@ echo "Preparing test environment..."
 					      inventoryDBHost=$($dockerCLI inspect inventory-db-$randomName |jq '.[0].NetworkSettings.Gateway?')
 								isPortOpen=0
                 echo -n "Setup new inventory API container... "
-                $dockerCLI run -p 18181:8080 --net ansible_inventory -e "DATABASE_PASS=$DATABASE_PASS" -e "DATABASE_NAME=$DATABASE_NAME" -e "DATABASE_USER=$DATABASE_USER" -e "DATABASE_PORT=$DATABASE_PORT" -e "DATABASE_HOST=inventory-db-$randomName" --name inventory-api-$randomName -d inventory-api-$randomName > /dev/null
+                $dockerCLI run -p 18181:8080 --net inventory-network-$randomName -e "DATABASE_PASS=$DATABASE_PASS" -e "DATABASE_NAME=$DATABASE_NAME" -e "DATABASE_USER=$DATABASE_USER" -e "DATABASE_PORT=$DATABASE_PORT" -e "DATABASE_HOST=inventory-db-$randomName" --name inventory-api-$randomName -d inventory-api-$randomName > /dev/null
+								if [ "$errc" -ne 0 ]; then
+									echo "Failed to create API container..."
+									decommissionEnv
+									exit 2
+								fi
                 echo "Done"
                 echo -n "Waiting for inventory API server to be ready."
                 while [ $isPortOpen -ne 0 ]
@@ -69,6 +86,12 @@ echo "Preparing test environment..."
                         isPortOpen=$?
                         sleep 1
                         echo -n "."
+												errc=$((errc+1))
+												if [ $errc -gt 25 ]; then
+													echo "Timeout.."
+													decommissionEnv
+													exit 2
+												fi
                 done
                 echo " Done"
         else
@@ -78,10 +101,12 @@ echo "Preparing test environment..."
 }
 
 function decommissionEnv {
-	echo "Cleaning up test environment"
+	echo -n "Cleaning up test environment... "
+	$dockerCLI network rm -f inventory-network-$randomName > /dev/null 2>&1
 	$dockerCLI container rm -f inventory-db-$randomName > /dev/null 2>&1
 	$dockerCLI container rm -f inventory-api-$randomName > /dev/null 2>&1
 	$dockerCLI image prune -a -f
+	echo "Done"
 }
 
 function runTest {
@@ -90,3 +115,5 @@ function runTest {
 
 compileAPI
 prepareEnv
+runTest
+decommissionEnv
