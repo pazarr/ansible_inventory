@@ -130,5 +130,5 @@ function runTest {
 compileAPI
 prepareEnv
 #runTest
-decommissionEnv
+#decommissionEnv
 exit 0

@@ -6,27 +6,25 @@ import (
     "strconv"
     "log"
     "time"
-//    _ "github.com/mattn/go-sqlite3"
     _ "github.com/go-sql-driver/mysql"
 )
 
 func getHostDetails(hostName string) map[string]interface {} {
-        //DB setup
-        database, err := sql.Open("mysql", databaseConnection)
-        if err != nil {
-                panic(err)
-        }
-        database.SetConnMaxLifetime(time.Minute * 3)
-        database.SetMaxOpenConns(10)
-        database.SetMaxIdleConns(10)
-        //Vars
-        var allVars = make(map[string]interface {})
-        //set local variables
-        var hostVarName string
-        var hostVarValue string
-//       database, _ := sql.Open("sqlite3", "./ansible.db")
-       hostVars, err :=
-	       database.Query("SELECT host_var, value FROM hostvars WHERE host_id = (SELECT host_id FROM hosts WHERE name='" + hostName + "');")
+  //DB setup
+  database, err := sql.Open("mysql", databaseConnection)
+  if err != nil {
+    panic(err)
+  }
+  database.SetConnMaxLifetime(time.Minute * 3)
+  database.SetMaxOpenConns(10)
+  database.SetMaxIdleConns(10)
+  //Vars
+  var allVars = make(map[string]interface {})
+  //set local variables
+  var hostVarName string
+  var hostVarValue string
+  hostVars, err :=
+   database.Query("SELECT host_var, value FROM hostvars WHERE host_id = (SELECT host_id FROM hosts WHERE name='" + hostName + "');")
 	if err != nil {
 		fmt.Println("SQL select error: ")
 		log.Fatal(err)
@@ -111,6 +109,59 @@ func getMetaData() map[string]interface{} {
 	return hostMap
 }
 
+func getGroupList() map[string]interface{} {
+  //DB setup
+  database, err := sql.Open("mysql", databaseConnection)
+  if err != nil {
+          panic(err)
+  }
+  database.SetConnMaxLifetime(time.Minute * 3)
+  database.SetMaxOpenConns(10)
+  database.SetMaxIdleConns(10)
+  //Vars
+  var hostName string
+  var groupName string
+  var groupVarName string
+  var groupVarValue string
+	var combinedMap = make(map[string]interface{})
+  rows, err :=
+          database.Query("SELECT group_id,name FROM hostgroups ORDER BY name ASC")
+  if err != nil {
+    fmt.Println(err.Error())
+  }
+//Create map from all children of the Parent
+  for rows.Next() {
+    var allGroup []string
+    var allVars = make(map[string]string)
+		var groupId int
+		rows.Scan(&groupId, &groupName)
+		hostAssoc, err :=
+			database.Query("SELECT name FROM hosts WHERE host_id IN (SELECT host_id FROM memberships WHERE group_id=" + strconv.Itoa(groupId) + ");")
+	        if err != nil {
+            fmt.Println(err.Error())
+		}
+		for hostAssoc.Next() {
+			hostAssoc.Scan(&hostName)
+			allGroup = append(allGroup,hostName)
+		}
+		groupVars, err :=
+			database.Query("SELECT group_var, value FROM groupvars WHERE group_id=" + strconv.Itoa(groupId))
+		if err != nil {
+      fmt.Println(err.Error())
+		}
+		for groupVars.Next() {
+			groupVars.Scan(&groupVarName, &groupVarValue)
+			allVars[groupVarName] = groupVarValue
+		}
+		groupMap := map[string]interface{}{
+			"children": allGroup,
+			"vars": allVars,
+                }
+		combinedMap[groupName] = groupMap
+	}
+        return combinedMap
+}
+
 func getAllList() map[string]interface{} {
   //DB setup
   database, err := sql.Open("mysql", databaseConnection)
@@ -126,22 +177,61 @@ func getAllList() map[string]interface{} {
   var parentVarName string
   var parentVarValue string
 	var combinedMap = make(map[string]interface{})
+  var hostName string
+  var groupVarName string
+  var groupVarValue string
+  grouprows, err :=
+          database.Query("SELECT group_id,name FROM hostgroups ORDER BY name ASC")
+  if err != nil {
+    fmt.Println(err.Error())
+  }
+  //Create map groups and hosts
+  for grouprows.Next() {
+    var allGroup []string
+    var allVars = make(map[string]string)
+    var groupId int
+    grouprows.Scan(&groupId, &groupName)
+    hostAssoc, err :=
+      database.Query("SELECT name FROM hosts WHERE host_id IN (SELECT host_id FROM memberships WHERE group_id=" + strconv.Itoa(groupId) + ");")
+          if err != nil {
+            fmt.Println(err.Error())
+    }
+    for hostAssoc.Next() {
+      hostAssoc.Scan(&hostName)
+      allGroup = append(allGroup,hostName)
+    }
+    groupVars, err :=
+      database.Query("SELECT group_var, value FROM groupvars WHERE group_id=" + strconv.Itoa(groupId))
+    if err != nil {
+      fmt.Println(err.Error())
+    }
+    for groupVars.Next() {
+      groupVars.Scan(&groupVarName, &groupVarValue)
+      allVars[groupVarName] = groupVarValue
+    }
+    groupMap := map[string]interface{}{
+      "hosts": allGroup,
+      "vars": allVars,
+                }
+    combinedMap[groupName] = groupMap
+  }
+
 //Set all host list
-        combinedMap["all"] = getHostList()
+  combinedMap["all"] = getHostList()
 // Set all host metadata
-        combinedMap["_meta"] = getMetaData()
+  combinedMap["_meta"] = getMetaData()
 //Fetch all Parent groups and handle SQL error
 //        database, _ := sql.Open("sqlite3", "./ansible.db")
-        rows, err :=
-                database.Query("SELECT parent_id,name FROM parentgroups ORDER BY name ASC")
-        if err != nil {
-                fmt.Println("SQL select error: ")
-                log.Fatal(err)
-        }
+  rows, err :=
+          database.Query("SELECT parent_id,name FROM parentgroups ORDER BY name ASC")
+  if err != nil {
+          fmt.Println("SQL select error: ")
+          log.Fatal(err)
+  }
 //Create map from all children of the Parent
-        for rows.Next() {
-	        var allGroup []string
-	        var allVars = make(map[string]string)
+  for rows.Next() {
+    var allGroup []string
+    var allVars = make(map[string]string)
 		var rowId int
 		rows.Scan(&rowId, &parentName)
 		groupAssoc, err :=
