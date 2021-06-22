@@ -24,10 +24,14 @@ isPortOpen=1
 randomName=$(tr -dc a-z0-9 </dev/urandom | head -c 16)
 function compileAPI {
 	$GOCOMP build .
+	if [ $? -ne 0 ];then
+		echo "failed to compile API code container"
+		exit 1
+	fi
 	$dockerCLI build -t inventory-api . > /dev/null
 	if [ $? -ne 0 ];then
 		echo "failed to build api container"
-		break
+		exit 1
 	fi
 }
 
@@ -62,6 +66,7 @@ function createInventoryDBContainer {
 }
 
 function createInventoryContainer {
+	compileAPI
 	inventoryDBHost=$($dockerCLI inspect inventory-db |jq '.[0].NetworkSettings.Gateway?')
 	isPortOpen=0
 	echo -n "Setup new inventory API container... "
@@ -164,9 +169,8 @@ function runTest {
 	fi
 }
 
-compileAPI
 deployEnv
 runTest
-decommissionInventoryContainer
+#decommissionInventoryContainer
 decommissionInventoryDBContainer
 exit 0

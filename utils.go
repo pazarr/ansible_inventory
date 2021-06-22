@@ -119,47 +119,47 @@ func getGroupList() map[string]interface{} {
   database.SetMaxOpenConns(10)
   database.SetMaxIdleConns(10)
   //Vars
+  var combinedMap = make(map[string]interface{})
   var hostName string
-  var groupName string
   var groupVarName string
   var groupVarValue string
-	var combinedMap = make(map[string]interface{})
-  rows, err :=
+  var groupName string
+  grouprows, err :=
           database.Query("SELECT group_id,name FROM hostgroups ORDER BY name ASC")
   if err != nil {
     fmt.Println(err.Error())
   }
-//Create map from all children of the Parent
-  for rows.Next() {
-    var allGroup []string
+  //Create map groups and hosts
+  for grouprows.Next() {
+    var allHosts []string
     var allVars = make(map[string]string)
-		var groupId int
-		rows.Scan(&groupId, &groupName)
-		hostAssoc, err :=
-			database.Query("SELECT name FROM hosts WHERE host_id IN (SELECT host_id FROM memberships WHERE group_id=" + strconv.Itoa(groupId) + ");")
-	        if err != nil {
+    var groupId int
+    grouprows.Scan(&groupId, &groupName)
+    hostAssoc, err :=
+      database.Query("SELECT name FROM hosts WHERE host_id IN (SELECT host_id FROM memberships WHERE group_id=" + strconv.Itoa(groupId) + ");")
+          if err != nil {
             fmt.Println(err.Error())
-		}
-		for hostAssoc.Next() {
-			hostAssoc.Scan(&hostName)
-			allGroup = append(allGroup,hostName)
-		}
-		groupVars, err :=
-			database.Query("SELECT group_var, value FROM groupvars WHERE group_id=" + strconv.Itoa(groupId))
-		if err != nil {
+    }
+    for hostAssoc.Next() {
+      hostAssoc.Scan(&hostName)
+      allHosts = append(allHosts,hostName)
+    }
+    groupVars, err :=
+      database.Query("SELECT group_var, value FROM groupvars WHERE group_id=" + strconv.Itoa(groupId))
+    if err != nil {
       fmt.Println(err.Error())
-		}
-		for groupVars.Next() {
-			groupVars.Scan(&groupVarName, &groupVarValue)
-			allVars[groupVarName] = groupVarValue
-		}
-		groupMap := map[string]interface{}{
-			"children": allGroup,
-			"vars": allVars,
+    }
+    for groupVars.Next() {
+      groupVars.Scan(&groupVarName, &groupVarValue)
+      allVars[groupVarName] = groupVarValue
+    }
+    groupMap := map[string]interface{}{
+      "hosts": allHosts,
+      "vars": allVars,
                 }
-		combinedMap[groupName] = groupMap
-	}
-        return combinedMap
+    combinedMap[groupName] = groupMap
+  }
+  return combinedMap
 }
 
 func getAllList() map[string]interface{} {

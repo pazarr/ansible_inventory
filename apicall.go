@@ -28,6 +28,7 @@ func apiCall(fromPost map[string][]string) map[string]interface {} {
 	} else {
 	//processing query result
 		switch fromPost["query"][0] {
+//This block is legacy and must go in the future
 			case "list":
 				return getAllList()
         fmt.Printf("List call")
@@ -42,6 +43,25 @@ func apiCall(fromPost map[string][]string) map[string]interface {} {
           returnMsg["Level"] = "Error"
           returnMsg["Message"] = "Hostname argument is missing"
         }
+        break
+//Legacy blocks end
+      case "getList":
+				return getAllList()
+        fmt.Printf("List call")
+				break
+      case "getHost":
+        if len(fromPost["hostname"]) != 0 {
+          fmt.Printf("Host call")
+          return getHostDetails(fromPost["hostname"][0])
+        } else {
+          fmt.Printf("Hostname argument is missing")
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Error"
+          returnMsg["Message"] = "Hostname argument is missing"
+        }
+        break
+      case "getGroups":
+        returnMsg = getGroupList()
         break
 			case "addHost":
 				if len(fromPost["hostname"]) != 0 && len(fromPost["group"]) != 0 {
