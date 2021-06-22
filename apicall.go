@@ -45,11 +45,11 @@ func apiCall(fromPost map[string][]string) map[string]interface {} {
         }
         break
 //Legacy blocks end
-      case "getList":
+      case "getAnsibleList":
 				return getAllList()
         fmt.Printf("List call")
 				break
-      case "getHost":
+      case "getAnsibleHost":
         if len(fromPost["hostname"]) != 0 {
           fmt.Printf("Host call")
           return getHostDetails(fromPost["hostname"][0])
@@ -155,7 +155,7 @@ func apiCall(fromPost map[string][]string) map[string]interface {} {
           returnMsg["Message"] = "Missing hostname from the query"
         }
         break
-      case "removeFromGroup":
+      case "removeHostFromGroup":
         if len(fromPost["hostname"]) != 0 && len(fromPost["group"]) != 0 {
         var hostId int64
         var groupId int64
