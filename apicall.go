@@ -126,7 +126,7 @@ func apiCall(fromPost map[string][]string) map[string]interface {} {
             fmt.Println("Deleted host from inventory: " + fromPost["hostname"][0])
             returnMsg["Timestamp"] = currentTime.String()
             returnMsg["Level"] = "Info"
-            returnMsg["Message"] = "Removed host" + fromPost["hostname"][0] + " from inventory"
+            returnMsg["Message"] = "Removed host " + fromPost["hostname"][0] + " from inventory"
           }
         } else {
           fmt.Println("Missing hostname from the query")

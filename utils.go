@@ -254,10 +254,10 @@ func getAllList() map[string]interface{} {
 			parentVars.Scan(&parentVarName, &parentVarValue)
 			allVars[parentVarName] = parentVarValue
 		}
-		parentMap := map[string]interface{}{
+		parentMap := map[string]interface{} {
 			"children": allGroup,
 			"vars": allVars,
-                }
+    }
 		combinedMap[parentName] = parentMap
 	}
         return combinedMap
