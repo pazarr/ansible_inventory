@@ -8,7 +8,7 @@ import (
     _ "github.com/go-sql-driver/mysql"
 )
 
-func apiCall(fromPost map[string][]string) map[string]interface {} {
+func apiCall(fromPost map[string][]string, mimetype string) map[string]interface {} {
   //DB setup
   database, err := sql.Open("mysql", databaseConnection)
   if err != nil {
