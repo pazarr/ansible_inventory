@@ -10,14 +10,21 @@ export DATABASE_NAME="ansible_inventory"
 exec "$@"
 export DATABASE_USER="root"
 exec "$@"
-export DATABASE_PORT="3306"
+export DATABASE_PORT=2861
 exec "$@"
+export API_PORT=9697
+exec "$@"
+export TEST_DATA_MD5="a24113f8a474adbd00108eaf0e96df7f  -"
+exec "$@"
+export TEST_DATA2_MD5="cee573a9b838a4cb230e281d771e6a9f  -"
+exec "$@"
+errc=0
 
 isPortOpen=1
 randomName=$(tr -dc a-z0-9 </dev/urandom | head -c 16)
 function compileAPI {
 	$GOCOMP build .
-	$dockerCLI build -t inventory-api-$randomName . > /dev/null
+	$dockerCLI build -t inventory-api . > /dev/null
 	if [ $? -ne 0 ];then
 		echo "failed to build api container"
 		break
@@ -25,20 +32,9 @@ function compileAPI {
 }
 function prepareEnv {
 echo "Preparing test environment with unique identifier: $randomName"
-	if [ $(docker container ls -f name=inventory-db-$randomName |wc -l) -ne 2 ]; then
-		if [ $(docker network inspect inventory-network-$randomName > /dev/null 2>&1; echo $?) -eq 1 ]; then
-			echo -n "Create docker network..."
-			$dockerCLI network create inventory-network-$randomName
-			if [ "$?" -ne 0 ]; then
-				echo "We encountered an issue, aborting...."
-				exit 2
-			fi
-			echo " Done"
-		else
-			echo "Conatiner network exists"
-		fi
+	if [ $(docker container ls -f name=inventory-db |wc -l) -ne 2 ]; then
 		echo -n "Setup new DB container... "
-		$dockerCLI run -p $DATABASE_PORT:3306  --net inventory-network-$randomName --name inventory-db-$randomName -e MARIADB_ROOT_PASSWORD=$DATABASE_PASS -d mariadb:latest > /dev/null
+		$dockerCLI run -p $DATABASE_PORT:3306 --net bridge --name inventory-db -e MARIADB_ROOT_PASSWORD=$DATABASE_PASS -d mariadb:latest > /dev/null
 		if [ "$?" -ne 0 ]; then
 			echo "Failed to build api container..."
 			decommissionEnv
@@ -68,11 +64,11 @@ echo "Preparing test environment with unique identifier: $randomName"
 	else
 		echo "Test DB container is ready"
 	fi
-        if [ $(docker container ls -f name=inventory-api-$randomName |wc -l) -ne 2 ]; then
-					      inventoryDBHost=$($dockerCLI inspect inventory-db-$randomName |jq '.[0].NetworkSettings.Gateway?')
+        if [ $(docker container ls -f name=inventory-api |wc -l) -ne 2 ]; then
+					      inventoryDBHost=$($dockerCLI inspect inventory-db |jq '.[0].NetworkSettings.Gateway?')
 								isPortOpen=0
                 echo -n "Setup new inventory API container... "
-                $dockerCLI run -p 18181:8080 --net inventory-network-$randomName -e "DATABASE_PASS=$DATABASE_PASS" -e "DATABASE_NAME=$DATABASE_NAME" -e "DATABASE_USER=$DATABASE_USER" -e "DATABASE_PORT=$DATABASE_PORT" -e "DATABASE_HOST=inventory-db-$randomName" --name inventory-api-$randomName -d inventory-api-$randomName > /dev/null
+                $dockerCLI run -p $API_PORT:8080 --net bridge -e "DATABASE_PASS=$DATABASE_PASS" -e "DATABASE_NAME=$DATABASE_NAME" -e "DATABASE_USER=$DATABASE_USER" -e "DATABASE_PORT=$DATABASE_PORT" -e "DATABASE_HOST=172.17.0.1" --name inventory-api -d inventory-api> /dev/null
 								if [ "$errc" -ne 0 ]; then
 									echo "Failed to create API container..."
 									decommissionEnv
@@ -102,18 +98,37 @@ echo "Preparing test environment with unique identifier: $randomName"
 
 function decommissionEnv {
 	echo -n "Cleaning up test environment... "
-	$dockerCLI network rm -f inventory-network-$randomName > /dev/null 2>&1
-	$dockerCLI container rm -f inventory-db-$randomName > /dev/null 2>&1
-	$dockerCLI container rm -f inventory-api-$randomName > /dev/null 2>&1
-	$dockerCLI image prune -a -f
+	$dockerCLI container rm -f inventory-api > /dev/null 2>&1
 	echo "Done"
 }
 
 function runTest {
-	echo "Run some test"
+	echo "Runing test..."
+	testCounter=1
+	if [ -f test-case.txt ]; then
+		cat ./test-case.txt | while read output
+		do
+			echo -n "$testCounter) $(echo $output | awk -F'|' '{print $1}') ..."
+			postPayload="$(echo $output | awk -F'|' '{print $2}')"
+			toCompare="$(echo $output | awk -F'|' '{print $3}')"
+			echo $toCompare
+			echo $postPayload
+			echo "$(curl -s -X POST -d $postPayload http://localhost:$API_PORT | md5sum -)"
+			if [[ "$(curl -s -X POST -d $postPayload http://localhost:$API_PORT | md5sum -)" == "$toCompare" ]]; then
+				echo "Passed"
+			else
+				echo "Failed"
+				#decommissionEnv
+				exit 1
+			fi
+		done
+	else
+		echo "No test specified... Skipping"
+	fi
 }
 
 compileAPI
 prepareEnv
 runTest
-decommissionEnv
+#decommissionEnv
+exit 0

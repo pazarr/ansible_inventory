@@ -68,26 +68,26 @@ func getHostList() map[string]interface{} {
 }
 
 func getMetaData() map[string]interface{} {
-        //DB setup
-        database, err := sql.Open("mysql", databaseConnection)
-        if err != nil {
-                panic(err)
-        }
-        database.SetConnMaxLifetime(time.Minute * 3)
-        database.SetMaxOpenConns(10)
-        database.SetMaxIdleConns(10)
-        //Vars
-	//var hostMetaData = make(map[string]interface{})
-	var hostMap = make(map[string]interface{})
-	var allVars = make(map[string]string)
-//        database, _ := sql.Open("sqlite3", "./ansible.db")
-        allHost, err :=
-                database.Query("SELECT host_id,name FROM hosts ORDER BY name ASC")
-        if err != nil {
-                fmt.Println("SQL select error: ")
-                log.Fatal(err)
-        }
-        for allHost.Next() {
+    //DB setup
+    database, err := sql.Open("mysql", databaseConnection)
+    if err != nil {
+            panic(err)
+    }
+    database.SetConnMaxLifetime(time.Minute * 3)
+    database.SetMaxOpenConns(10)
+    database.SetMaxIdleConns(10)
+    //Vars
+    //var hostMetaData = make(map[string]interface{})
+    var hostMap = make(map[string]interface{})
+    var allVars = make(map[string]string)
+    //        database, _ := sql.Open("sqlite3", "./ansible.db")
+    allHost, err :=
+            database.Query("SELECT host_id,name FROM hosts ORDER BY name ASC")
+    if err != nil {
+            fmt.Println("SQL select error: ")
+            log.Fatal(err)
+    }
+    for allHost.Next() {
 		//set local variables
 		var hostVarName string
 		var hostVarValue string
@@ -97,33 +97,34 @@ func getMetaData() map[string]interface{} {
 		allHost.Scan(&hostId,&hostName)
 		hostVars, err :=
                 database.Query("SELECT host_var, value FROM hostvars WHERE host_id=" + strconv.Itoa(hostId))
-	        if err != nil {
+	  if err != nil {
 			fmt.Println("SQL select error: ")
 			log.Fatal(err)
 		}
+    allVars = make(map[string]string)
 		for hostVars.Next() {
-			hostVars.Scan(&hostVarName, &hostVarValue)
-                        allVars[hostVarName] = hostVarValue
-                }
-                hostMap[hostName] = allVars
+      hostVars.Scan(&hostVarName, &hostVarValue)
+      allVars[hostVarName] = hostVarValue
+    }
+    hostMap[hostName] = allVars
 	}
 	return hostMap
 }
 
 func getAllList() map[string]interface{} {
-        //DB setup
-        database, err := sql.Open("mysql", databaseConnection)
-        if err != nil {
-                panic(err)
-        }
-        database.SetConnMaxLifetime(time.Minute * 3)
-        database.SetMaxOpenConns(10)
-        database.SetMaxIdleConns(10)
-        //Vars
-        var parentName string
-        var groupName string
-        var parentVarName string
-        var parentVarValue string
+  //DB setup
+  database, err := sql.Open("mysql", databaseConnection)
+  if err != nil {
+          panic(err)
+  }
+  database.SetConnMaxLifetime(time.Minute * 3)
+  database.SetMaxOpenConns(10)
+  database.SetMaxIdleConns(10)
+  //Vars
+  var parentName string
+  var groupName string
+  var parentVarName string
+  var parentVarValue string
 	var combinedMap = make(map[string]interface{})
 //Set all host list
         combinedMap["all"] = getHostList()
@@ -171,4 +172,3 @@ func getAllList() map[string]interface{} {
 	}
         return combinedMap
 }
-
