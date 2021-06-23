@@ -7,8 +7,46 @@ import (
     "time"
     _ "github.com/go-sql-driver/mysql"
 )
+//Api calls via POST JSON body
+func apiCallJSON(postBody map[string]interface{}) map[string]interface {} {
+  returnMsg := make(map[string]interface {})
+  currentTime := time.Now()
+  if query, ok := postBody["query"] ; ok {
+    switch query {
+//This block is legacy and must go in the future
+      case "getAnsibleList":
+        returnMsg = getAllList()
+        fmt.Printf("List call")
+        break
+      case "getAnsibleHost":
+        if hostnameAnsibleQuery, ok := postBody["hostname"] ; ok {
+          fmt.Printf("Host call")
+          str := fmt.Sprintf("%v", hostnameAnsibleQuery)
+          returnMsg = getHostDetails(str)
+        } else {
+          fmt.Println("Valid JSON query")
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Info"
+          returnMsg["Message"] = "Valid JSON query"
+          returnMsg["Query"] = query
+        }
+        break
+      case "getGroups":
+        returnMsg = getGroupList()
+        break
+    }
+  } else {
+    fmt.Println("Valid JSON query")
+    returnMsg["Timestamp"] = currentTime.String()
+    returnMsg["Level"] = "Info"
+    returnMsg["Message"] = "Valid JSON query"
+    returnMsg["Query"] = query
+  }
+  return returnMsg
+}
 
-func apiCall(fromPost map[string][]string, mimetype string) map[string]interface {} {
+//Api calls via POST forms
+func apiCallFORM(fromPost map[string][]string) map[string]interface {} {
   //DB setup
   database, err := sql.Open("mysql", databaseConnection)
   if err != nil {
@@ -20,7 +58,8 @@ func apiCall(fromPost map[string][]string, mimetype string) map[string]interface
 	//Vars
   currentTime := time.Now()
 	returnMsg := make(map[string]interface {})
-	if len(fromPost["query"][0]) == 0 {
+
+	if len(fromPost) == 0 {
     fmt.Println("Missing query parameter")
     returnMsg["Timestamp"] = currentTime.String()
     returnMsg["Level"] = "Error"

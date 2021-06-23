@@ -8,6 +8,7 @@ import (
     "os"
     _ "github.com/mattn/go-sqlite3"
 )
+
 var databaseHost string
 var databasePort string
 var databaseUser string
@@ -16,6 +17,10 @@ var databaseName string
 var databaseConnection string
 
 func ansibleIndex(w http.ResponseWriter, r *http.Request) {
+  type queryBody struct {
+    M string `json:"M"`
+    N  map[string]string `json:"N"`
+  }
   mimetype := r.Header.Get("Content-type")
   fmt.Println("mime type: " + mimetype)
   if r.URL.Path != "/" {
@@ -26,15 +31,29 @@ func ansibleIndex(w http.ResponseWriter, r *http.Request) {
     case "GET":
       http.ServeFile(w, r, "/var/html/index.html")
     case "POST":
-      if err := r.ParseForm(); err != nil {
-        fmt.Fprintf(w, "ParseForm() err: %v", err)
-        return
+      if mimetype == "application/json" {
+        var queryStruct map[string]interface{}
+        err := json.NewDecoder(r.Body).Decode(&queryStruct)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusBadRequest)
+            return
+        }
+        // Do something with the Person struct...
+        // fmt.Fprintf(w,"%+v", queryStruct)
+        w.Header().Add("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(apiCallJSON(queryStruct))
+      } else {
+          if err := r.ParseForm(); err != nil {
+            fmt.Fprintf(w, "ParseForm() err: %v", err)
+            return
+          }
+          var postKV = make(map[string][]string)
+          for k, v := range r.Form {
+          postKV[k] = v
       }
-      var postKV = make(map[string][]string)
-      for k, v := range r.Form {
-      postKV[k] = v
+      w.Header().Add("Content-Type", "application/json")
+      json.NewEncoder(w).Encode(apiCallFORM(postKV))
       }
-      json.NewEncoder(w).Encode(apiCall(postKV, mimetype))
     default:
       fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
     }

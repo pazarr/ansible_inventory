@@ -23,16 +23,20 @@ errc=0
 isPortOpen=1
 randomName=$(tr -dc a-z0-9 </dev/urandom | head -c 16)
 function compileAPI {
+	echo -n "Compile GO code... "
 	$GOCOMP build .
 	if [ $? -ne 0 ];then
-		echo "failed to compile API code container"
+		echo " Failed"
 		exit 1
 	fi
+	echo "Done"
+	echo -n "Build API conatiner... "
 	$dockerCLI build -t inventory-api . > /dev/null
 	if [ $? -ne 0 ];then
-		echo "failed to build api container"
+		echo "Failed"
 		exit 1
 	fi
+	echo "Done"
 }
 
 function createInventoryDBContainer {
@@ -66,7 +70,6 @@ function createInventoryDBContainer {
 }
 
 function createInventoryContainer {
-	compileAPI
 	inventoryDBHost=$($dockerCLI inspect inventory-db |jq '.[0].NetworkSettings.Gateway?')
 	isPortOpen=0
 	echo -n "Setup new inventory API container... "
@@ -82,7 +85,6 @@ function createInventoryContainer {
 	do
 					curl -s localhost:18181
 					isPortOpen=$?
-					sleep 1
 					echo -n "."
 					errc=$((errc+1))
 					if [ $errc -gt 25 ]; then
@@ -95,7 +97,7 @@ function createInventoryContainer {
 }
 
 function deployEnv {
-	echo "Preparing test environment with unique identifier"
+        compileAPI
 	docker container inspect inventory-db > /dev/null 2>&1
 	if [[ "$(docker container ls -f name=inventory-db |wc -l)" -lt 2 ]]; then
 		createInventoryDBContainer
@@ -163,6 +165,7 @@ function runTest {
 				#decommissionEnv
 				exit 1
 			fi
+			testCounter=$((testCounter+1))
 		done
 	else
 		echo "No test specified... Skipping"
