@@ -262,3 +262,50 @@ func getAllList() map[string]interface{} {
 	}
         return combinedMap
 }
+
+func removeHostFromInventory(hostnames []string) map[string]interface{} {
+  //DB setup
+  database, err := sql.Open("mysql", databaseConnection)
+  if err != nil {
+          panic(err)
+  }
+  database.SetConnMaxLifetime(time.Minute * 3)
+  database.SetMaxOpenConns(10)
+  database.SetMaxIdleConns(10)
+  //Vars
+  returnMsg := make(map[string]interface {})
+  currentTime := time.Now()
+  var hostname string
+  var hostId int64
+  if len(hostname) < 1 {
+    for _, hostname := range hostnames {
+    cursor := database.QueryRow("SELECT host_id FROM hosts WHERE name=\"" + hostname + "\"")
+    err := cursor.Scan(&hostId)
+    if ( err == sql.ErrNoRows ) {
+      fmt.Printf("No host " + hostname + " found")
+      returnMsg["Timestamp"] = currentTime.String()
+      returnMsg["Level"] = "Error"
+      returnMsg["Message"] = "No host " + hostname +" found"
+    }
+//Delete the host by host_id
+    _, err = database.Exec("DELETE FROM hosts WHERE host_id=\"" + strconv.FormatInt(hostId, 10) + "\"")
+    if err != nil {
+      fmt.Println("SQL error during host delete " + err.Error())
+      returnMsg["Timestamp"] = currentTime.String()
+      returnMsg["Level"] = "Error"
+      returnMsg["Message"] = err.Error()
+    } else {
+        fmt.Println("Deleted host from inventory: " + hostname)
+        returnMsg["Timestamp"] = currentTime.String()
+        returnMsg["Level"] = "Info"
+        returnMsg["Message"] = "Removed host " + hostname + " from inventory"
+    }
+  }
+  } else {
+      fmt.Println("Missing hostname(s) from the query")
+      returnMsg["Timestamp"] = currentTime.String()
+      returnMsg["Level"] = "Error"
+      returnMsg["Message"] = "Missing hostname(s) from the query"
+  }
+  return returnMsg
+}

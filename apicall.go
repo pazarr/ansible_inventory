@@ -34,6 +34,24 @@ func apiCallJSON(postBody map[string]interface{}) map[string]interface {} {
       case "getGroups":
         returnMsg = getGroupList()
         break
+      case "removeHostFromInventory":
+        if _, ok := postBody["hostname"] ; ok {
+          fmt.Printf("Remove hosts ")
+          hostList := postBody["hostname"].([]interface{})
+          aString := make([]string, len(hostList))
+          for i, v := range hostList {
+            aString[i] = v.(string)
+          }
+          fmt.Printf("%q\n", hostList)
+          returnMsg = removeHostFromInventory(aString)
+        } else {
+          fmt.Println("Valid JSON query, but no acction associated")
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Info"
+          returnMsg["Message"] = "Valid JSON query, but no actin associated"
+          returnMsg["Query"] = query
+        }
+        break
     }
   } else {
     fmt.Println("Valid JSON query")
