@@ -21,7 +21,7 @@ Only POST query is supported with following calls:
  <p/><b>removeHostFromInventory</b>
   <div class=desc><p>General query will remove server from the inventory and return with a JSON object that contains the confirmation. Eg.: <i>"query=removeHostFromInventory&hostname=ansible.local.net"</i> or JSON <i>{"query":"removeHostFromInventory","hostname":"ansible.local.net"}</i></p></div>
  <p/><b>removeHostFromGroup</b>
-  <div class=desc><p>General query will remove server from a host group specified in the paramters and return with a JSON object that contains the confirmation. Eg.: <i>"query=removeHostFromGroup&hostname=ansible.local.net&group=Production"</i></p></div>
+  <div class=desc><p>General query will remove server from a host group specified in the paramters and return with a JSON object that contains the confirmation. Eg.: <i>"query=removeHostFromGroup&hostname=ansible.local.net&group=Production"</i> or JSON <i>{"query":"removeHostFromGroup","groupname":"this_hostgroup","hostname":"ansible.local.net"}</i></p></div>
  <p/><b>addHostVar</b>
   <div class=desc><p>General query will add new variable to a server or update existing one specified in the paramters. It returning with a JSON object that contains the confirmation. Eg.: <i>"query=addHostVar&hostname=ansible.local.net&hostvar=Variable1&value=NewValue"</i></p></div>
  <p/><b>addGroupVar</b>
