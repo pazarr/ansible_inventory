@@ -125,7 +125,7 @@ func apiCallFORM(fromPost map[string][]string) map[string]interface {} {
 		switch fromPost["query"][0] {
 //This block is legacy and must go in the future
 			case "list":
-				return getAllList()
+				return getAnsibleAllList()
         fmt.Printf("List call")
 				break
 			case "host":
@@ -141,7 +141,7 @@ func apiCallFORM(fromPost map[string][]string) map[string]interface {} {
         break
 //Legacy blocks end
       case "getAnsibleList":
-				return getAllList()
+				return getAnsibleAllList()
         fmt.Printf("List call")
 				break
       case "getAnsibleHost":
