@@ -35,11 +35,9 @@ func ansibleIndex(w http.ResponseWriter, r *http.Request) {
         var queryStruct map[string]interface{}
         err := json.NewDecoder(r.Body).Decode(&queryStruct)
         if err != nil {
-            http.Error(w, err.Error(), http.StatusBadRequest)
+            http.Error(w, "Not valid JSON", http.StatusBadRequest)
             return
         }
-        // Do something with the Person struct...
-        // fmt.Fprintf(w,"%+v", queryStruct)
         w.Header().Add("Content-Type", "application/json")
         json.NewEncoder(w).Encode(apiCallJSON(queryStruct))
       } else {

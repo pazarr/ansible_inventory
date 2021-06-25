@@ -20,7 +20,6 @@ func getHostDetails(hostName string) map[string]interface {} {
   database.SetMaxIdleConns(10)
   //Vars
   var allVars = make(map[string]interface {})
-  //set local variables
   var hostVarName string
   var hostVarValue string
   hostVars, err :=
@@ -263,7 +262,7 @@ func getAllList() map[string]interface{} {
         return combinedMap
 }
 
-func removeHostFromInventory(hostnames []string) map[string]interface{} {
+func removeHostFromInventory(hostname string) map[string]interface{} {
   //DB setup
   database, err := sql.Open("mysql", databaseConnection)
   if err != nil {
@@ -275,32 +274,29 @@ func removeHostFromInventory(hostnames []string) map[string]interface{} {
   //Vars
   returnMsg := make(map[string]interface {})
   currentTime := time.Now()
-  var hostname string
   var hostId int64
-  if len(hostname) < 1 {
-    for _, hostname := range hostnames {
-    cursor := database.QueryRow("SELECT host_id FROM hosts WHERE name=\"" + hostname + "\"")
-    err := cursor.Scan(&hostId)
-    if ( err == sql.ErrNoRows ) {
+  if len(hostname) > 0 {
+    err = database.QueryRow("SELECT host_id FROM hosts WHERE name = ?", hostname).Scan(&hostId)
+    if err == sql.ErrNoRows {
       fmt.Printf("No host " + hostname + " found")
       returnMsg["Timestamp"] = currentTime.String()
       returnMsg["Level"] = "Error"
       returnMsg["Message"] = "No host " + hostname +" found"
     }
-//Delete the host by host_id
-    _, err = database.Exec("DELETE FROM hosts WHERE host_id=\"" + strconv.FormatInt(hostId, 10) + "\"")
-    if err != nil {
-      fmt.Println("SQL error during host delete " + err.Error())
-      returnMsg["Timestamp"] = currentTime.String()
-      returnMsg["Level"] = "Error"
-      returnMsg["Message"] = err.Error()
-    } else {
-        fmt.Println("Deleted host from inventory: " + hostname)
+    if err == nil {
+      _, err = database.Exec("DELETE FROM hosts WHERE host_id=\"" + strconv.FormatInt(hostId, 10) + "\"")
+      if err != nil {
+        fmt.Println("SQL error during host delete " + err.Error())
         returnMsg["Timestamp"] = currentTime.String()
-        returnMsg["Level"] = "Info"
-        returnMsg["Message"] = "Removed host " + hostname + " from inventory"
+        returnMsg["Level"] = "Error"
+        returnMsg["Message"] = err.Error()
+      } else {
+          fmt.Println("Deleted host from inventory: " + hostname)
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Info"
+          returnMsg["Message"] = "Removed host " + hostname + " from inventory"
+      }
     }
-  }
   } else {
       fmt.Println("Missing hostname(s) from the query")
       returnMsg["Timestamp"] = currentTime.String()
@@ -309,3 +305,59 @@ func removeHostFromInventory(hostnames []string) map[string]interface{} {
   }
   return returnMsg
 }
+
+func removeHostFromGroup(hostName string, groupName string) map[string]interface{} {
+  //DB setup
+  database, err := sql.Open("mysql", databaseConnection)
+  if err != nil {
+          panic(err)
+  }
+  database.SetConnMaxLifetime(time.Minute * 3)
+  database.SetMaxOpenConns(10)
+  database.SetMaxIdleConns(10)
+  returnMsg := make(map[string]interface {})
+  currentTime := time.Now()
+  var hostId int64
+  var groupId int64
+  err = database.QueryRow("SELECT group_id FROM hostgroups WHERE name = ?", groupName).Scan(&groupId)
+  if err == sql.ErrNoRows {
+    fmt.Printf("No hostgroup " + groupName + " found")
+    returnMsg["Timestamp"] = currentTime.String()
+    returnMsg["Level"] = "Error"
+    returnMsg["Message"] = "No hostgroup: " + groupName +" found"
+  }
+  if err == nil {
+    err = database.QueryRow("SELECT host_id FROM hosts WHERE name = ?", hostName).Scan(&hostId)
+    if err == sql.ErrNoRows {
+      fmt.Printf("No host " + hostName + " found")
+      returnMsg["Timestamp"] = currentTime.String()
+      returnMsg["Level"] = "Error"
+      returnMsg["Message"] = "No host: " + hostName +" found"
+    }
+    if err == nil {
+        err = database.QueryRow("SELECT host_id FROM memberships WHERE host_id=? AND group_id=?", strconv.FormatInt(hostId, 10), strconv.FormatInt(groupId, 10)).Scan(&hostId)
+        if err == sql.ErrNoRows {
+          fmt.Printf("Host " + hostName + " is not member of" + groupName)
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Error"
+          returnMsg["Message"] = hostName + " host is not member of " + groupName + " hostgroup"
+        }
+      if err == nil {
+        _, err = database.Exec("DELETE FROM memberships WHERE host_id=? AND group_id=?",strconv.FormatInt(hostId, 10),strconv.FormatInt(groupId, 10))
+        fmt.Printf("fourth")
+        if err != nil {
+          fmt.Println(err.Error())
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Error"
+          returnMsg["Message"] = err.Error()
+        } else {
+            fmt.Println("Host removed from hostgroup")
+            returnMsg["Timestamp"] = currentTime.String()
+            returnMsg["Level"] = "Info"
+            returnMsg["Message"] = "Host removed from hostgroup"
+        }
+      }
+    }
+  }
+  return returnMsg
+ }

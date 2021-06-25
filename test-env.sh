@@ -105,16 +105,10 @@ function deployEnv {
 		if [ "$TO_DECOMMISSION_DB" != "0" ]; then
 			decommissionInventoryDBContainer
 			createInventoryDBContainer
-	 fi
+		 fi
  fi
-  if [[ "$(docker container ls -f name=inventory-api |wc -l)" -lt 2 ]]; then
-		createInventoryContainer
-  else
-		if [ "$TO_DECOMMISSION_INV" != "0" ]; then
-			decommissionInventoryContainer
+			$dockerCLI container rm -f inventory-api > /dev/null 2>&1
 			createInventoryContainer
-		fi
-  fi
 	echo "Test environment is ready"
 }
 

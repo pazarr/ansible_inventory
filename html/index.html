@@ -18,8 +18,8 @@ Only POST query is supported with following calls:
   <div class=desc><p>Ansible inventory query will return with a JSON object that contains all metadata about one host specified in the <i>hostname</i> parameter. Eg.: POST Form<i>"query=getAnsibleHost&hostname=ansible.local.net"</i> or JSON <i>{"query":"getAnsibleHost","hostname":"qa-jenkins-master"}'</i></p></div>
  <p/><b>getGroups</b>
   <div class=desc><p>General query will return with a JSON object that contains all group with group's variable and host members. Eg.: POST Form<i>"query=getGroups"</i> or JSON <i>{"query":"getGroups"}</i></p></div>
- <p/><b>removeHost</b>
-  <div class=desc><p>General query will remove server from the inventory and return with a JSON object that contains the confirmation. Eg.: <i>"query=removeHost&hostname=ansible.local.net"</i></p></div>
+ <p/><b>removeHostFromInventory</b>
+  <div class=desc><p>General query will remove server from the inventory and return with a JSON object that contains the confirmation. Eg.: <i>"query=removeHostFromInventory&hostname=ansible.local.net"</i> or JSON <i>{"query":"removeHostFromInventory","hostname":"ansible.local.net"}</i></p></div>
  <p/><b>removeHostFromGroup</b>
   <div class=desc><p>General query will remove server from a host group specified in the paramters and return with a JSON object that contains the confirmation. Eg.: <i>"query=removeHostFromGroup&hostname=ansible.local.net&group=Production"</i></p></div>
  <p/><b>addHostVar</b>
