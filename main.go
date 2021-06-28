@@ -39,11 +39,22 @@ func ansibleIndex(w http.ResponseWriter, r *http.Request) {
             returnMsg["Timestamp"] = currentTime.String()
             returnMsg["Level"] = "Error"
             returnMsg["Message"] = "Invalid JSON format"
+            http.Error(w, "", 400)
             json.NewEncoder(w).Encode(returnMsg)
             break
         }
-        w.Header().Add("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(apiCallJSON(queryStruct))
+        queryReturn := apiCallJSON(queryStruct)
+        if queryReturn["Level"] == "Error" {
+          w.Header().Set("Content-Type", "application/json; charset=utf-8")
+          w.Header().Set("X-Content-Type-Options", "nosniff")
+          w.WriteHeader(400)
+        } else {
+          w.Header().Set("Content-Type", "application/json; charset=utf-8")
+          w.Header().Set("X-Content-Type-Options", "nosniff")
+          w.WriteHeader(200)
+        }
+          json.NewEncoder(w).Encode(queryReturn)
+
       } else {
           if err := r.ParseForm(); err != nil {
             fmt.Fprintf(w, "ParseForm() err: %v", err)
@@ -51,11 +62,20 @@ func ansibleIndex(w http.ResponseWriter, r *http.Request) {
           }
           var postKV = make(map[string][]string)
           for k, v := range r.Form {
-          postKV[k] = v
-      }
-      w.Header().Add("Content-Type", "application/json")
-      json.NewEncoder(w).Encode(apiCallFORM(postKV))
-      }
+            postKV[k] = v
+          }
+          queryReturn := apiCallFORM(postKV)
+          if queryReturn["Level"] == "Error" {
+            w.Header().Set("Content-Type", "application/json; charset=utf-8")
+            w.Header().Set("X-Content-Type-Options", "nosniff")
+            w.WriteHeader(400)
+          } else {
+            w.Header().Set("Content-Type", "application/json; charset=utf-8")
+            w.Header().Set("X-Content-Type-Options", "nosniff")
+            w.WriteHeader(200)
+          }
+            json.NewEncoder(w).Encode(queryReturn)
+          }
     default:
       fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
     }
