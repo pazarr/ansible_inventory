@@ -5,6 +5,7 @@ import (
     "encoding/json"
     "net/http"
     "log"
+    "time"
     "os"
     _ "github.com/mattn/go-sqlite3"
 )
@@ -17,10 +18,8 @@ var databaseName string
 var databaseConnection string
 
 func ansibleIndex(w http.ResponseWriter, r *http.Request) {
-  type queryBody struct {
-    M string `json:"M"`
-    N  map[string]string `json:"N"`
-  }
+  returnMsg := make(map[string]interface {})
+  currentTime := time.Now()
   mimetype := r.Header.Get("Content-type")
   fmt.Println("mime type: " + mimetype)
   if r.URL.Path != "/" {
@@ -35,8 +34,13 @@ func ansibleIndex(w http.ResponseWriter, r *http.Request) {
         var queryStruct map[string]interface{}
         err := json.NewDecoder(r.Body).Decode(&queryStruct)
         if err != nil {
-            http.Error(w, "Not valid JSON", http.StatusBadRequest)
-            return
+            w.Header().Add("Content-Type", "application/json")
+            fmt.Printf("Invalid JSON format")
+            returnMsg["Timestamp"] = currentTime.String()
+            returnMsg["Level"] = "Error"
+            returnMsg["Message"] = "Invalid JSON format"
+            json.NewEncoder(w).Encode(returnMsg)
+            break
         }
         w.Header().Add("Content-Type", "application/json")
         json.NewEncoder(w).Encode(apiCallJSON(queryStruct))

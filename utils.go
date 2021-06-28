@@ -36,77 +36,72 @@ func getHostDetails(hostName string) map[string]interface {} {
 }
 
 func getHostList() map[string]interface{} {
-        //DB setup
-        database, err := sql.Open("mysql", databaseConnection)
-        if err != nil {
-                panic(err)
-        }
-        database.SetConnMaxLifetime(time.Minute * 3)
-        database.SetMaxOpenConns(10)
-        database.SetMaxIdleConns(10)
-        //Vars
-        var allHost []string
-	var hostName string
-//        database, _ := sql.Open("sqlite3", "./ansible.db")
-        fetchAllHost, err :=
-                database.Query("SELECT name FROM hosts ORDER BY name ASC")
-        if err != nil {
-		fmt.Println("SQL select error: ")
-		log.Fatal(err)
-	}
-        for fetchAllHost.Next() {
-                fetchAllHost.Scan(&hostName)
-                allHost = append(allHost,hostName)
-        }
-        hostMap := map[string]interface{}{
-                "hosts": allHost,
-        }
-	return hostMap
+  //DB setup
+  database, err := sql.Open("mysql", databaseConnection)
+  if err != nil {
+    panic(err)
+  }
+  database.SetConnMaxLifetime(time.Minute * 3)
+  database.SetMaxOpenConns(10)
+  database.SetMaxIdleConns(10)
+  //Vars
+  var allHost []string
+  var hostName string
+  fetchAllHost, err :=
+  database.Query("SELECT name FROM hosts ORDER BY name ASC")
+  if err != nil {
+    fmt.Println("SQL select error: ")
+    log.Fatal(err)
+  }
+  for fetchAllHost.Next() {
+    fetchAllHost.Scan(&hostName)
+    allHost = append(allHost,hostName)
+  }
+  hostMap := map[string]interface{}{
+    "hosts": allHost,
+  }
+  return hostMap
 }
 
 func getMetaData() map[string]interface{} {
-    //DB setup
-    database, err := sql.Open("mysql", databaseConnection)
+  //DB setup
+  database, err := sql.Open("mysql", databaseConnection)
+  if err != nil {
+    panic(err)
+  }
+  database.SetConnMaxLifetime(time.Minute * 3)
+  database.SetMaxOpenConns(10)
+  database.SetMaxIdleConns(10)
+  //Vars
+  var hostVarName string
+  var hostVarValue string
+  var hostId int
+  var hostName string
+  var hostMap = make(map[string]interface{})
+  var allVars = make(map[string]string)
+
+  allHost, err := database.Query("SELECT host_id,name FROM hosts ORDER BY name ASC")
+  if err != nil {
+    fmt.Println("SQL select error: ")
+    log.Fatal(err)
+  }
+  for allHost.Next() {
+    allHost.Scan(&hostId,&hostName)
+    hostVars, err :=
+    database.Query("SELECT host_var, value FROM hostvars WHERE host_id=" + strconv.Itoa(hostId))
     if err != nil {
-            panic(err)
+      fmt.Println("SQL select error: ")
+      log.Fatal(err)
     }
-    database.SetConnMaxLifetime(time.Minute * 3)
-    database.SetMaxOpenConns(10)
-    database.SetMaxIdleConns(10)
-    //Vars
-    //var hostMetaData = make(map[string]interface{})
-    var hostMap = make(map[string]interface{})
-    var allVars = make(map[string]string)
-    //        database, _ := sql.Open("sqlite3", "./ansible.db")
-    allHost, err :=
-            database.Query("SELECT host_id,name FROM hosts ORDER BY name ASC")
-    if err != nil {
-            fmt.Println("SQL select error: ")
-            log.Fatal(err)
-    }
-    for allHost.Next() {
-		//set local variables
-		var hostVarName string
-		var hostVarValue string
-		var hostId int
-		var hostName string
-		//processing query result
-		allHost.Scan(&hostId,&hostName)
-		hostVars, err :=
-                database.Query("SELECT host_var, value FROM hostvars WHERE host_id=" + strconv.Itoa(hostId))
-	  if err != nil {
-			fmt.Println("SQL select error: ")
-			log.Fatal(err)
-		}
     allVars = make(map[string]string)
-		for hostVars.Next() {
+    for hostVars.Next() {
       hostVars.Scan(&hostVarName, &hostVarValue)
       allVars[hostVarName] = hostVarValue
     }
     hostMap[hostName] = allVars
-	}
-	return hostMap
-}
+  }
+  return hostMap
+  }
 
 func getGroupList() map[string]interface{} {
   //DB setup
@@ -266,7 +261,7 @@ func removeHostFromInventory(hostname string) map[string]interface{} {
   //DB setup
   database, err := sql.Open("mysql", databaseConnection)
   if err != nil {
-          panic(err)
+    panic(err)
   }
   database.SetConnMaxLifetime(time.Minute * 3)
   database.SetMaxOpenConns(10)
@@ -281,6 +276,7 @@ func removeHostFromInventory(hostname string) map[string]interface{} {
       fmt.Printf("No host " + hostname + " found")
       returnMsg["Timestamp"] = currentTime.String()
       returnMsg["Level"] = "Error"
+      returnMsg["Query"] = "removeHostFromInventory"
       returnMsg["Message"] = "No host " + hostname +" found"
     }
     if err == nil {
@@ -289,18 +285,21 @@ func removeHostFromInventory(hostname string) map[string]interface{} {
         fmt.Println("SQL error during host delete " + err.Error())
         returnMsg["Timestamp"] = currentTime.String()
         returnMsg["Level"] = "Error"
+        returnMsg["Query"] = "removeHostFromInventory"
         returnMsg["Message"] = err.Error()
       } else {
           fmt.Println("Deleted host from inventory: " + hostname)
           returnMsg["Timestamp"] = currentTime.String()
           returnMsg["Level"] = "Info"
-          returnMsg["Message"] = "Removed host " + hostname + " from inventory"
+          returnMsg["Query"] = "removeHostFromInventory"
+          returnMsg["Message"] = hostname + "is removed from inventory"
       }
     }
   } else {
       fmt.Println("Missing hostname(s) from the query")
       returnMsg["Timestamp"] = currentTime.String()
       returnMsg["Level"] = "Error"
+      returnMsg["Query"] = "removeHostFromInventory"
       returnMsg["Message"] = "Missing hostname(s) from the query"
   }
   return returnMsg
@@ -324,7 +323,8 @@ func removeHostFromGroup(hostName string, groupName string) map[string]interface
     fmt.Printf("No hostgroup " + groupName + " found")
     returnMsg["Timestamp"] = currentTime.String()
     returnMsg["Level"] = "Error"
-    returnMsg["Message"] = "No hostgroup: " + groupName +" found"
+    returnMsg["Query"] = "removeHostFromGroup"
+    returnMsg["Message"] = "No hostgroup " + groupName +" found"
   }
   if err == nil {
     err = database.QueryRow("SELECT host_id FROM hosts WHERE name = ?", hostName).Scan(&hostId)
@@ -332,7 +332,8 @@ func removeHostFromGroup(hostName string, groupName string) map[string]interface
       fmt.Printf("No host " + hostName + " found")
       returnMsg["Timestamp"] = currentTime.String()
       returnMsg["Level"] = "Error"
-      returnMsg["Message"] = "No host: " + hostName +" found"
+      returnMsg["Query"] = "removeHostFromGroup"
+      returnMsg["Message"] = "No host " + hostName +" found"
     }
     if err == nil {
         err = database.QueryRow("SELECT host_id FROM memberships WHERE host_id=? AND group_id=?", strconv.FormatInt(hostId, 10), strconv.FormatInt(groupId, 10)).Scan(&hostId)
@@ -340,6 +341,7 @@ func removeHostFromGroup(hostName string, groupName string) map[string]interface
           fmt.Printf("Host " + hostName + " is not member of" + groupName)
           returnMsg["Timestamp"] = currentTime.String()
           returnMsg["Level"] = "Error"
+          returnMsg["Query"] = "removeHostFromGroup"
           returnMsg["Message"] = hostName + " host is not member of " + groupName + " hostgroup"
         }
       if err == nil {
@@ -349,15 +351,129 @@ func removeHostFromGroup(hostName string, groupName string) map[string]interface
           fmt.Println(err.Error())
           returnMsg["Timestamp"] = currentTime.String()
           returnMsg["Level"] = "Error"
+          returnMsg["Query"] = "removeHostFromGroup"
           returnMsg["Message"] = err.Error()
         } else {
             fmt.Println("Host removed from hostgroup")
             returnMsg["Timestamp"] = currentTime.String()
             returnMsg["Level"] = "Info"
-            returnMsg["Message"] = "Host removed from hostgroup"
+            returnMsg["Query"] = "removeHostFromGroup"
+            returnMsg["Message"] = hostName + " removed from " + groupName + " hostgroup"
         }
       }
     }
   }
   return returnMsg
  }
+
+ func addHostVar(hostName string, hostvarName string, hostvarValue string) map[string]interface{} {
+   //DB setup
+   database, err := sql.Open("mysql", databaseConnection)
+   if err != nil {
+    panic(err)
+   }
+   database.SetConnMaxLifetime(time.Minute * 3)
+   database.SetMaxOpenConns(10)
+   database.SetMaxIdleConns(10)
+   returnMsg := make(map[string]interface {})
+   currentTime := time.Now()
+   var hostId int64
+   var qCount int
+   err = database.QueryRow("SELECT host_id FROM hosts WHERE name = ?",hostName).Scan(&hostId)
+   if err == sql.ErrNoRows {
+     fmt.Printf("No host " + hostName + " found")
+     returnMsg["Timestamp"] = currentTime.String()
+     returnMsg["Level"] = "Error"
+     returnMsg["Query"] = "addHostVar"
+     returnMsg["Message"] = "No host " + hostName +" found"
+   } else {
+    err = database.QueryRow("SELECT value from hostvars WHERE host_id=? AND host_var=?",strconv.FormatInt(hostId, 10),hostvarName).Scan(&qCount)
+    if err == sql.ErrNoRows {
+      _,err = database.Exec("INSERT INTO hostvars(host_id,host_var,value) VALUES(?,?,?)",strconv.FormatInt(hostId, 10),hostvarName,hostvarValue)
+      if err == nil {
+        fmt.Printf("Register new host variable")
+        returnMsg["Timestamp"] = currentTime.String()
+        returnMsg["Level"] = "Info"
+        returnMsg["Message"] = "Register new host variable"
+      } else {
+        fmt.Printf(err.Error())
+        returnMsg["Timestamp"] = currentTime.String()
+        returnMsg["Level"] = "Error"
+        returnMsg["Query"] = "addHostVar"
+        returnMsg["Message"] = err.Error()
+      }
+    } else {
+      _,err = database.Exec("UPDATE hostvars SET value=? WHERE host_id=? AND host_var=?",hostvarValue,strconv.FormatInt(hostId, 10),hostvarName)
+      if err == nil {
+        fmt.Printf("Update host variable")
+        returnMsg["Timestamp"] = currentTime.String()
+        returnMsg["Level"] = "Info"
+        returnMsg["Message"] = "Update host variable"
+      } else {
+        fmt.Printf(err.Error())
+        returnMsg["Timestamp"] = currentTime.String()
+        returnMsg["Level"] = "Error"
+        returnMsg["Query"] = "addHostVar"
+        returnMsg["Message"] = err.Error()
+      }
+    }
+  }
+  return returnMsg
+}
+
+func addGroupVar(groupName string, groupvarName string, groupvarValue string) map[string]interface{} {
+  //DB setup
+  database, err := sql.Open("mysql", databaseConnection)
+  if err != nil {
+   panic(err)
+  }
+  database.SetConnMaxLifetime(time.Minute * 3)
+  database.SetMaxOpenConns(10)
+  database.SetMaxIdleConns(10)
+  returnMsg := make(map[string]interface {})
+  currentTime := time.Now()
+  var groupId int64
+  var qCount int
+  err = database.QueryRow("SELECT group_id FROM hostgroups WHERE name = ?",groupName).Scan(&groupId)
+  if err == sql.ErrNoRows {
+    fmt.Printf("No host " + groupName + " found")
+    returnMsg["Timestamp"] = currentTime.String()
+    returnMsg["Level"] = "Error"
+    returnMsg["Query"] = "addGroupVar"
+    returnMsg["Message"] = "No group " + groupName +" found"
+  } else {
+   err = database.QueryRow("SELECT value from groupvars WHERE group_id=? AND group_var=?",strconv.FormatInt(groupId, 10),groupvarName).Scan(&qCount)
+   if err == sql.ErrNoRows {
+     _,err = database.Exec("INSERT INTO groupvars(group_id,group_var,value) VALUES(?,?,?)",strconv.FormatInt(groupId, 10),groupvarName,groupvarValue)
+     if err == nil {
+       fmt.Printf("Register new group variable")
+       returnMsg["Timestamp"] = currentTime.String()
+       returnMsg["Level"] = "Info"
+       returnMsg["Query"] = "addGroupVar"
+       returnMsg["Message"] = "Register new group variable"
+     } else {
+       fmt.Printf(err.Error())
+       returnMsg["Timestamp"] = currentTime.String()
+       returnMsg["Level"] = "Error"
+       returnMsg["Query"] = "addGroupVar"
+       returnMsg["Message"] = err.Error()
+     }
+   } else {
+     _,err = database.Exec("UPDATE groupvars SET value=? WHERE group_id=? AND group_var=?",groupvarValue,strconv.FormatInt(groupId, 10),groupvarName)
+     if err == nil {
+       fmt.Printf("Update host variable")
+       returnMsg["Timestamp"] = currentTime.String()
+       returnMsg["Level"] = "Info"
+       returnMsg["Query"] = "addGroupVar"
+       returnMsg["Message"] = "Update group variable"
+     } else {
+       fmt.Printf(err.Error())
+       returnMsg["Timestamp"] = currentTime.String()
+       returnMsg["Level"] = "Error"
+       returnMsg["Query"] = "addGroupVar"
+       returnMsg["Message"] = err.Error()
+     }
+   }
+ }
+ return returnMsg
+}

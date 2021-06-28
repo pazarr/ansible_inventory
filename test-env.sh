@@ -150,7 +150,7 @@ function runTest {
 		do
 			echo -n "$testCounter) $(echo $output | cut -d'|' -f1 )... "
 			postPayload="$(echo $output | cut -d'|' -f2)"
-			curlRespons="$(echo -n $(curl -s -X POST -d $postPayload http://localhost:$API_PORT | md5sum)| cut -d " " -f 1 | tr -d "\n")"
+			curlRespons="$(echo -n $(curl -s $postPayload http://localhost:$API_PORT | md5sum)| cut -d " " -f 1 | tr -d "\n")"
 			toCompare="$(echo $output | cut -d'|' -f3)"
 			if [[ "$curlRespons" == "$toCompare" ]]; then
 				echo "Passed"

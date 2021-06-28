@@ -5,21 +5,21 @@ import (
     "fmt"
     "strconv"
     "time"
+    "strings"
     _ "github.com/go-sql-driver/mysql"
 )
-
 //Api calls via POST JSON body
 func apiCallJSON(postBody map[string]interface{}) map[string]interface {} {
   returnMsg := make(map[string]interface {})
   currentTime := time.Now()
   if query, ok := postBody["query"] ; ok {
-    switch query {
-//This block is legacy and must go in the future
-      case "getAnsibleList":
+    str := fmt.Sprintf("%v", query)
+    switch strings.ToLower(str) {
+    case "getansiblelist":
         returnMsg = getAllList()
         fmt.Printf("List call")
         break
-      case "getAnsibleHost":
+      case "getansiblehost":
         if hostnameAnsibleQuery, ok := postBody["hostname"] ; ok {
           fmt.Printf("Host call")
           str := fmt.Sprintf("%v", hostnameAnsibleQuery)
@@ -32,72 +32,130 @@ func apiCallJSON(postBody map[string]interface{}) map[string]interface {} {
           returnMsg["Query"] = query
         }
         break
-      case "getGroups":
+      case "getgroups":
         returnMsg = getGroupList()
         break
-    case "removeHostFromInventory":
-      if hostnameAnsibleQuery, ok := postBody["hostname"] ; ok {
-        fmt.Printf("Query: removeHostFromInventory")
-        str := fmt.Sprintf("%v", hostnameAnsibleQuery)
-        returnMsg = removeHostFromInventory(str)
-      } else {
-        fmt.Println("Valid JSON query")
-        returnMsg["Timestamp"] = currentTime.String()
-        returnMsg["Level"] = "Info"
-        returnMsg["Message"] = "Valid JSON query"
-        returnMsg["Query"] = query
-      }
-      break
-    case "removeHostFromGroup":
-      var hostName string
-      var groupName string
-      if hostnameAnsibleQuery, ok := postBody["hostname"] ; ok {
-        hostName = fmt.Sprintf("%v", hostnameAnsibleQuery)
+      case "removehostfrominventory":
+        if hostnameAnsibleQuery, ok := postBody["hostname"] ; ok {
+          fmt.Printf("Query: removeHostFromInventory")
+          str := fmt.Sprintf("%v", hostnameAnsibleQuery)
+          returnMsg = removeHostFromInventory(str)
         } else {
-        fmt.Println("Hostname is missing from the query")
+          fmt.Println("Valid JSON query")
+          returnMsg["Timestamp"] = currentTime.String()
+          returnMsg["Level"] = "Info"
+          returnMsg["Message"] = "Valid JSON query"
+          returnMsg["Query"] = query
+        }
+        break
+      case "removehostfromgroup":
+        var hostName string
+        var groupName string
+        if hostnameAnsibleQuery, ok := postBody["hostname"] ; ok {
+          hostName = fmt.Sprintf("%v", hostnameAnsibleQuery)
+          } else {
+              fmt.Println("Hostname is missing from the query")
+              returnMsg["Timestamp"] = currentTime.String()
+              returnMsg["Level"] = "Error"
+              returnMsg["Message"] = "Hostname is missing from the query"
+              returnMsg["Query"] = query
+              break
+        }
+        if groupnameAnsibleQuery, ok := postBody["groupname"] ; ok {
+          groupName = fmt.Sprintf("%v", groupnameAnsibleQuery)
+          } else {
+              fmt.Println("Hostgroup name is missing from the query")
+              returnMsg["Timestamp"] = currentTime.String()
+              returnMsg["Level"] = "Error"
+              returnMsg["Message"] = "Hostgroup name is missing from the query"
+              returnMsg["Query"] = query
+              break
+        }
+        returnMsg = removeHostFromGroup(hostName,groupName)
+        break
+      case "addhostvar":
+        var hostName, hostvarName, hostvarValue string
+        if hostNameQuery, ok := postBody["hostname"] ; ok {
+          hostName = fmt.Sprintf("%v", hostNameQuery)
+          } else {
+              fmt.Println("Hostname is missing from the query")
+              returnMsg["Timestamp"] = currentTime.String()
+              returnMsg["Level"] = "Error"
+              returnMsg["Message"] = "Hostname is missing from the query"
+              returnMsg["Query"] = query
+              break
+        }
+        if hostvarNameQuery, ok := postBody["hostvarname"] ; ok {
+          hostvarName = fmt.Sprintf("%v", hostvarNameQuery)
+          } else {
+              fmt.Println("host variable name is missing from the query")
+              returnMsg["Timestamp"] = currentTime.String()
+              returnMsg["Level"] = "Error"
+              returnMsg["Message"] = "Host variable name(hostvarname) is missing from the query"
+              returnMsg["Query"] = query
+              break
+        }
+        if hostvarValueQuery, ok := postBody["hostvarvalue"] ; ok {
+          hostvarValue = fmt.Sprintf("%v", hostvarValueQuery)
+          } else {
+              fmt.Println("host variable value is missing from the query")
+              returnMsg["Timestamp"] = currentTime.String()
+              returnMsg["Level"] = "Error"
+              returnMsg["Message"] = "Host variable value(hostvarvalue) is missing from the query"
+              returnMsg["Query"] = query
+              break
+            }
+        returnMsg = addHostVar(hostName,hostvarName,hostvarValue)
+        break
+      case "addgroupvar":
+        var groupName, groupvarName, groupvarValue string
+        if groupNameQuery, ok := postBody["groupname"] ; ok {
+          groupName = fmt.Sprintf("%v", groupNameQuery)
+          } else {
+              fmt.Println("Groupname is missing from the query")
+              returnMsg["Timestamp"] = currentTime.String()
+              returnMsg["Level"] = "Error"
+              returnMsg["Message"] = "Groupname is missing from the query"
+              returnMsg["Query"] = query
+              break
+        }
+        if groupvarNameQuery, ok := postBody["groupvarname"] ; ok {
+          groupvarName = fmt.Sprintf("%v", groupvarNameQuery)
+          } else {
+              fmt.Println("Group variable name is missing from the query")
+              returnMsg["Timestamp"] = currentTime.String()
+              returnMsg["Level"] = "Error"
+              returnMsg["Message"] = "Group variable name(groupvarname) is missing from the query"
+              returnMsg["Query"] = query
+              break
+        }
+        if groupvarValueQuery, ok := postBody["groupvarvalue"] ; ok {
+          groupvarValue = fmt.Sprintf("%v", groupvarValueQuery)
+          } else {
+              fmt.Println("Group variable value is missing from the query")
+              returnMsg["Timestamp"] = currentTime.String()
+              returnMsg["Level"] = "Error"
+              returnMsg["Message"] = "Group variable value(groupvarvalue) is missing from the query"
+              returnMsg["Query"] = query
+              break
+            }
+        returnMsg = addGroupVar(groupName,groupvarName,groupvarValue)
+        break
+      default:
+        fmt.Println("Query is not valid on this context")
         returnMsg["Timestamp"] = currentTime.String()
-        returnMsg["Level"] = "Info"
-        returnMsg["Message"] = "Hostname is missing from the query"
+        returnMsg["Level"] = "Error"
+        returnMsg["Message"] = "Query is not valid in this context. Please note, query string is "
         returnMsg["Query"] = query
         break
       }
-      if groupnameAnsibleQuery, ok := postBody["groupname"] ; ok {
-        groupName = fmt.Sprintf("%v", groupnameAnsibleQuery)
-        } else {
-        fmt.Println("Hostgroup name is missing from the query")
-        returnMsg["Timestamp"] = currentTime.String()
-        returnMsg["Level"] = "Info"
-        returnMsg["Message"] = "Hostgroup name is missing from the query"
-        returnMsg["Query"] = query
-        break
-      }
-      returnMsg = removeHostFromGroup(hostName,groupName)
-      break
-//Below is just a solution where we can manage arrays
-// case "removeHostFromInventory":
-//   if _, ok := postBody["hostname"] ; ok {
-//     hostList := postBody["hostname"].([]interface{})
-//     stringArray := make([]string, len(hostList))
-//     for i, v := range hostList {
-//       stringArray[i] = v.(string)
-//     }
-//     returnMsg = removeHostFromInventory(stringArray)
-//   } else {
-//     fmt.Println("Valid JSON query, but no action associated")
-//     returnMsg["Timestamp"] = currentTime.String()
-//     returnMsg["Level"] = "Info"
-//     returnMsg["Message"] = "Valid JSON query, but no action associated"
-//     returnMsg["Query"] = query
-//   }
-//   break
-    }
   } else {
-    fmt.Println("Valid JSON query")
-    returnMsg["Timestamp"] = currentTime.String()
-    returnMsg["Level"] = "Info"
-    returnMsg["Message"] = "Valid JSON query"
-    returnMsg["Query"] = query
-  }
+      fmt.Println("Missing query field")
+      returnMsg["Timestamp"] = currentTime.String()
+      returnMsg["Level"] = "Error"
+      returnMsg["Message"] = "Missing query field"
+      returnMsg["PostBody"] = postBody
+    }
   return returnMsg
 }
 
@@ -122,7 +180,7 @@ func apiCallFORM(fromPost map[string][]string) map[string]interface {} {
     returnMsg["Message"] = "Missing query parameter"
 	} else {
 	//processing query result
-		switch fromPost["query"][0] {
+		switch strings.ToLower(fromPost["query"][0]) {
 //This block is legacy and must go in the future
 			case "list":
 				return getAnsibleAllList()
@@ -140,11 +198,11 @@ func apiCallFORM(fromPost map[string][]string) map[string]interface {} {
         }
         break
 //Legacy blocks end
-      case "getAnsibleList":
+      case "getansiblelist":
 				return getAnsibleAllList()
         fmt.Printf("List call")
 				break
-      case "getAnsibleHost":
+      case "getansiblehost":
         if len(fromPost["hostname"]) != 0 {
           fmt.Printf("Host call")
           return getHostDetails(fromPost["hostname"][0])
@@ -155,10 +213,10 @@ func apiCallFORM(fromPost map[string][]string) map[string]interface {} {
           returnMsg["Message"] = "Hostname argument is missing"
         }
         break
-      case "getGroups":
+      case "getgroups":
         returnMsg = getGroupList()
         break
-			case "addHost":
+			case "addhost":
 				if len(fromPost["hostname"]) != 0 && len(fromPost["group"]) != 0 {
 					var groupId, count int
           var hostId int64
@@ -218,7 +276,7 @@ func apiCallFORM(fromPost map[string][]string) map[string]interface {} {
               returnMsg["Message"] = "Missing argument"
         }
   			break
-      case "removeHostFromInventory":
+      case "removehostfrominventory":
         if hostnameAnsibleQuery, ok := fromPost["hostname"] ; ok {
           fmt.Printf("Query: removeHostFromInventory")
           returnMsg = removeHostFromInventory(hostnameAnsibleQuery[0])
@@ -230,7 +288,7 @@ func apiCallFORM(fromPost map[string][]string) map[string]interface {} {
           returnMsg["Query"] = "removeHostFromInventory"
         }
         break
-      case "removeHostFromGroup":
+      case "removehostfromgroup":
         if len(fromPost["hostname"][0]) != 0 && len(fromPost["groupname"][0]) != 0 {
           returnMsg = removeHostFromGroup(fromPost["hostname"][0],fromPost["groupname"][0])
         } else {
@@ -241,97 +299,29 @@ func apiCallFORM(fromPost map[string][]string) map[string]interface {} {
           break
        }
        break
-     case "addHostVar":
-       if len(fromPost["hostname"]) != 0 && len(fromPost["hostvar"]) != 0 && len(fromPost["value"]) != 0 {
-         var hostId int64
-         var qCount int
-//Is hostname is valid?
-         cursor := database.QueryRow("SELECT host_id from hosts WHERE name=\"" + fromPost["hostname"][0] +"\"")
-         err := cursor.Scan(&hostId)
-         if ( err == sql.ErrNoRows ) {
-           fmt.Printf("Host name is not registered")
-           returnMsg["Timestamp"] = currentTime.String()
-           returnMsg["Level"] = "Error"
-           returnMsg["Message"] = "This host name is not registeres"
-           break
-         }
-         cursor = database.QueryRow("SELECT * from hostvars WHERE host_id=" + strconv.FormatInt(hostId, 10) + " AND host_var=\"" + fromPost["hostvar"][0] + "\"")
-         err = cursor.Scan(&qCount)
-         if ( err == sql.ErrNoRows ) {
-           _,err = database.Exec("INSERT INTO hostvars(host_id,host_var,value) VALUES(" + strconv.FormatInt(hostId, 10) + ",\"" + fromPost["hostvar"][0] + "\",\"" + fromPost["value"][0] + "\")")
-           if err != nil {
-             fmt.Printf(err.Error())
-             returnMsg["Timestamp"] = currentTime.String()
-             returnMsg["Level"] = "Error"
-             returnMsg["Message"] = err.Error()
-             break
-           }
-           fmt.Printf("Register new host variable")
-           returnMsg["Timestamp"] = currentTime.String()
-           returnMsg["Level"] = "Info"
-           returnMsg["Message"] = "Register new host variable"
-           break
-         } else {
-           _,err = database.Exec("UPDATE hostvars SET value=\"" + fromPost["value"][0] + "\" WHERE host_id=\"" + strconv.FormatInt(hostId, 10) + "\" AND host_var=\"" + fromPost["hostvar"][0] + "\"")
-           if err != nil {
-             fmt.Printf(err.Error())
-             returnMsg["Timestamp"] = currentTime.String()
-             returnMsg["Level"] = "Error"
-             returnMsg["Message"] = err.Error()
-             break
-           }
-           fmt.Printf("Update host variable")
-           returnMsg["Timestamp"] = currentTime.String()
-           returnMsg["Level"] = "Info"
-           returnMsg["Message"] = "Update host variable"
-         }
-       }
-      break
-    case "addGroupVar":
-      if len(fromPost["group"]) != 0 && len(fromPost["groupvar"]) != 0 && len(fromPost["value"]) != 0 {
-        var groupId int64
-        var qCount int
-//Is hostname is valid?
-        cursor := database.QueryRow("SELECT group_id from hostgroups WHERE name=\"" + fromPost["group"][0] +"\"")
-        err := cursor.Scan(&groupId)
-        if ( err == sql.ErrNoRows ) {
-          fmt.Printf("Hostgroup name is not registered")
-          returnMsg["Timestamp"] = currentTime.String()
-          returnMsg["Level"] = "Error"
-          returnMsg["Message"] = "This hostgroup name is not registered"
-          break
-        }
-        cursor = database.QueryRow("SELECT * from groupvars WHERE group_id=" + strconv.FormatInt(groupId, 10) + " AND group_var=\"" + fromPost["groupvar"][0] + "\"")
-        err = cursor.Scan(&qCount)
-        if ( err == sql.ErrNoRows ) {
-          _,err = database.Exec("INSERT INTO groupvars(group_id,group_var,value) VALUES(" + strconv.FormatInt(groupId, 10) + ",\"" + fromPost["groupvar"][0] + "\",\"" + fromPost["value"][0] + "\")")
-          if err != nil {
-            fmt.Printf(err.Error())
-            returnMsg["Timestamp"] = currentTime.String()
-            returnMsg["Level"] = "Error"
-            returnMsg["Message"] = err.Error()
-            break
-          }
-          fmt.Printf("Register new hostgroup variable")
-          returnMsg["Timestamp"] = currentTime.String()
-          returnMsg["Level"] = "Info"
-          returnMsg["Message"] = "Register new hostgroup variable"
-          break
-        } else {
-          _,err = database.Exec("UPDATE groupvars SET value=\"" + fromPost["value"][0] + "\" WHERE group_id=\"" + strconv.FormatInt(groupId, 10) + "\" AND group_var=\"" + fromPost["groupvar"][0] + "\"")
-          if err != nil {
-            fmt.Printf(err.Error())
-            returnMsg["Timestamp"] = currentTime.String()
-            returnMsg["Level"] = "Error"
-            returnMsg["Message"] = err.Error()
-            break
-          }
-          fmt.Printf("Update hostgroup variable")
-          returnMsg["Timestamp"] = currentTime.String()
-          returnMsg["Level"] = "Info"
-          returnMsg["Message"] = "Update hostgroup variable"
-        }
+     case "addhostvar":
+       if len(fromPost["hostname"]) != 0 && len(fromPost["hostvarname"]) != 0 && len(fromPost["hostvarvalue"]) != 0 {
+         returnMsg = addHostVar(fromPost["hostname"][0],fromPost["hostvarname"][0],fromPost["hostvarvalue"][0])
+       } else {
+         fmt.Println("Missing arguments")
+         returnMsg["Timestamp"] = currentTime.String()
+         returnMsg["Level"] = "Error"
+         returnMsg["Query"] = "addHostVar"
+         returnMsg["Message"] = "Missing arguments"
+         break
       }
+      break
+    case "addgroupvar":
+      if len(fromPost["groupname"]) != 0 && len(fromPost["groupvarname"]) != 0 && len(fromPost["groupvarvalue"]) != 0 {
+        returnMsg = addGroupVar(fromPost["groupname"][0],fromPost["groupvarname"][0],fromPost["groupvarvalue"][0])
+      } else {
+        fmt.Println("Missing arguments")
+        returnMsg["Timestamp"] = currentTime.String()
+        returnMsg["Level"] = "Error"
+        returnMsg["Query"] = "addGroupVar"
+        returnMsg["Message"] = "Missing arguments"
+        break
+     }
      break
    }
   }
